@@ -1,0 +1,51 @@
+<!--
+  ============================================================================
+  CleanTenant.API — Minimal API Katmanı
+  ============================================================================
+  Uygulamanın giriş noktası (entry point). HTTP isteklerini karşılar,
+  MediatR aracılığıyla Application katmanına yönlendirir.
+  
+  MINIMAL API YAKLAŞIMI:
+  .NET'in Minimal API özelliğini kullanıyoruz. Controller yerine
+  static metod tabanlı endpoint'ler tanımlanır. Bu yaklaşım:
+  - Daha az boilerplate kod
+  - Daha iyi performans (controller overhead yok)
+  - Daha kolay test edilebilirlik
+  - Clean Code prensiplerine daha uygun
+  
+  PROGRAM.CS TEMİZLİĞİ:
+  Tüm servis kayıtları ve middleware konfigürasyonları extension
+  method'lara taşınır. Program.cs sadece bu method'ları çağırır.
+  ============================================================================
+-->
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <RootNamespace>CleanTenant.API</RootNamespace>
+    <AssemblyName>CleanTenant.API</AssemblyName>
+    
+    <!-- API projesi çalıştırılabilir bir web uygulamasıdır -->
+    <OutputType>Exe</OutputType>
+    
+    <!-- NuGet paketi olarak yayınlanmaz — bu bir host projesidir -->
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <!-- API → Infrastructure → Application → Domain (Clean Architecture flow) -->
+  <ItemGroup>
+    <ProjectReference Include="..\CleanTenant.Infrastructure\CleanTenant.Infrastructure.csproj" />
+    <ProjectReference Include="..\CleanTenant.Shared\CleanTenant.Shared.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- OpenAPI: AddOpenApi() ve MapOpenApi() için gerekli (.NET 10) -->
+    <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.*" />
+
+    <!-- Scalar: OpenAPI dokümantasyon UI (.NET 10 native desteği ile) -->
+    <PackageReference Include="Scalar.AspNetCore" Version="2.*" />
+    
+    <!-- Hangfire Dashboard: Background job izleme paneli -->
+    <PackageReference Include="Hangfire.AspNetCore" Version="$(HangfireVersion)" />
+  </ItemGroup>
+
+</Project>

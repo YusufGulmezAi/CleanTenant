@@ -1,0 +1,58 @@
+<!--
+  ============================================================================
+  CleanTenant.Application — Uygulama Katmanı
+  ============================================================================
+  Clean Architecture'ın İKİNCİ KATMANI.
+  
+  Bu katman Domain katmanını referans eder ama Infrastructure'ı BİLMEZ.
+  Dependency Inversion prensibi gereği, bu katman interface'leri tanımlar,
+  Infrastructure katmanı bu interface'leri implemente eder.
+  
+  Bu katman şunları içerir:
+  - CQRS Command ve Query handler'ları (MediatR)
+  - Pipeline Behaviors (Validation, Logging, Caching, Authorization, Audit)
+  - Interface tanımları (IApplicationDbContext, ICacheService vb.)
+  - Mapping profilleri (Entity ↔ DTO dönüşümleri)
+  - Business rule exception'ları
+  ============================================================================
+-->
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <RootNamespace>CleanTenant.Application</RootNamespace>
+    <AssemblyName>CleanTenant.Application</AssemblyName>
+    <IsPackable>true</IsPackable>
+    <PackageId>CleanTenant.Application</PackageId>
+    <Description>CleanTenant Application Layer - CQRS, Behaviors, Business Logic</Description>
+  </PropertyGroup>
+
+  <!-- Katman Referansları: Application → Domain + Shared -->
+  <ItemGroup>
+    <ProjectReference Include="..\CleanTenant.Domain\CleanTenant.Domain.csproj" />
+    <ProjectReference Include="..\CleanTenant.Shared\CleanTenant.Shared.csproj" />
+  </ItemGroup>
+
+  <!-- 
+    Application katmanının bağımlılıkları SADECE abstraction paketleridir.
+    EF Core'un kendisi değil, sadece abstraction'ları burada olmalıdır.
+    Concrete implementasyonlar Infrastructure katmanında kalır.
+  -->
+  <ItemGroup>
+    <!-- MediatR: CQRS pattern — Command/Query ayrımı ve pipeline behaviors -->
+    <PackageReference Include="MediatR" Version="$(MediatRVersion)" />
+    
+    <!-- FluentValidation: İş kuralı doğrulama — MediatR pipeline'da otomatik çalışır -->
+    <PackageReference Include="FluentValidation" Version="$(FluentValidationVersion)" />
+    <PackageReference Include="FluentValidation.DependencyInjectionExtensions" Version="$(FluentValidationVersion)" />
+    
+    <!-- EF Core: DbSet<T> ve IQueryable extension'ları için gerekli -->
+    <PackageReference Include="Microsoft.EntityFrameworkCore" Version="$(EfCoreVersion)" />
+    
+    <!-- IConfiguration: appsettings.json okuma (sadece abstractions — concrete değil) -->
+    <PackageReference Include="Microsoft.Extensions.Configuration.Abstractions" Version="10.0.*" />
+    
+    <!-- ILogger: Loglama (sadece abstractions) -->
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.*" />
+  </ItemGroup>
+
+</Project>

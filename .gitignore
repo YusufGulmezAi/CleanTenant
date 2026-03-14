@@ -1,0 +1,76 @@
+## .NET
+bin/
+obj/
+*.user
+*.suo
+*.cache
+*.log
+*.vs/
+.vscode/
+
+## Build results
+[Dd]ebug/
+[Rr]elease/
+x64/
+x86/
+build/
+bld/
+
+## NuGet
+*.nupkg
+*.snupkg
+**/packages/*
+project.lock.json
+project.fragment.lock.json
+artifacts/
+
+## IDE
+.idea/
+*.swp
+*~.nib
+*.sln.docstates
+
+## OS
+.DS_Store
+Thumbs.db
+
+## User-specific
+*.rsuser
+*.pidb
+*.dbmdl
+*.jfm
+
+# ============================================================================
+# ⚠️ GÜVENLİK KRİTİK — Aşağıdaki dosyalar ASLA commit edilmez!
+# ============================================================================
+
+## Environment dosyaları (şifreler ve secret'lar)
+.env
+!.env.example
+
+## Production ve Staging ayarları (hassas bağlantı bilgileri)
+**/appsettings.Production.json
+**/appsettings.Staging.json
+**/appsettings.Test.json
+**/appsettings.Demo.json
+
+## Sertifika ve anahtar dosyaları
+*.pfx
+*.key
+*.pem
+*.p12
+
+## Docker override (kişiye özel port değişiklikleri)
+docker-compose.override.yml
+
+# ============================================================================
+
+## Backups
+backups/
+
+## Test results
+TestResults/
+coverage/
+
+## Launch settings (kişisel debug ayarları)
+**/Properties/launchSettings.json

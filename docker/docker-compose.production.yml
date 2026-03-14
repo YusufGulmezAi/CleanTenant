@@ -1,0 +1,84 @@
+# ============================================================================
+# CleanTenant — Docker Compose (Production)
+# ============================================================================
+# KULLANIM:
+#   docker-compose -f docker-compose.production.yml --env-file ../.env.production up -d
+#
+# ÖNEMLİ: .env.production dosyasını oluşturup güçlü şifreler giriniz.
+# Production'da portlar DIŞARI AÇILMAZ — sadece API portu açılır.
+# ============================================================================
+
+services:
+
+  postgres-main:
+    image: postgres:17-alpine
+    container_name: ct-prod-db-main
+    restart: always
+    environment:
+      POSTGRES_DB: ${DB_NAME}
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      TZ: "Europe/Istanbul"
+    volumes:
+      - ct-prod-pgdata-main:/var/lib/postgresql/data
+    networks:
+      - ct-prod-network
+
+  postgres-audit:
+    image: postgres:17-alpine
+    container_name: ct-prod-db-audit
+    restart: always
+    environment:
+      POSTGRES_DB: ${AUDIT_DB_NAME}
+      POSTGRES_USER: ${AUDIT_DB_USER}
+      POSTGRES_PASSWORD: ${AUDIT_DB_PASSWORD}
+      TZ: "Europe/Istanbul"
+    volumes:
+      - ct-prod-pgdata-audit:/var/lib/postgresql/data
+    networks:
+      - ct-prod-network
+
+  redis:
+    image: redis:7-alpine
+    container_name: ct-prod-redis
+    restart: always
+    command: >
+      redis-server
+      --requirepass ${REDIS_PASSWORD}
+      --maxmemory 512mb
+      --maxmemory-policy allkeys-lru
+      --appendonly yes
+    volumes:
+      - ct-prod-redis-data:/data
+    networks:
+      - ct-prod-network
+
+  api:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.api
+    container_name: ct-prod-api
+    restart: always
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ConnectionStrings__MainDatabase: "Host=postgres-main;Port=5432;Database=${DB_NAME};Username=${DB_USER};Password=${DB_PASSWORD}"
+      ConnectionStrings__AuditDatabase: "Host=postgres-audit;Port=5432;Database=${AUDIT_DB_NAME};Username=${AUDIT_DB_USER};Password=${AUDIT_DB_PASSWORD}"
+      ConnectionStrings__Redis: "redis:6379,password=${REDIS_PASSWORD},abortConnect=false"
+      CleanTenant__Jwt__Secret: ${JWT_SECRET}
+    ports:
+      - "5000:8080"
+    depends_on:
+      - postgres-main
+      - postgres-audit
+      - redis
+    networks:
+      - ct-prod-network
+
+volumes:
+  ct-prod-pgdata-main:
+  ct-prod-pgdata-audit:
+  ct-prod-redis-data:
+
+networks:
+  ct-prod-network:
+    driver: bridge

@@ -1,0 +1,104 @@
+<!--
+  ============================================================================
+  CleanTenant.Infrastructure — Altyapı Katmanı
+  ============================================================================
+  Clean Architecture'ın EN DIŞ KATMANI (Frameworks & Drivers).
+  
+  Bu katman Application katmanındaki interface'leri implemente eder.
+  Tüm "teknik detaylar" burada yaşar: Veritabanı, Cache, E-posta, SMS vb.
+  
+  DEPENDENCY INVERSION PRENSİBİ:
+  Application katmanı IApplicationDbContext interface'ini tanımlar.
+  Infrastructure katmanı ApplicationDbContext sınıfını oluşturur ve bu
+  interface'i implemente eder. Böylece Application katmanı EF Core'u
+  hiç bilmez — sadece kendi tanımladığı interface'i kullanır.
+  
+  Bu katman şunları içerir:
+  - EF Core DbContext (PostgreSQL)
+  - Repository implementasyonları
+  - Redis cache implementasyonu
+  - JWT token servisi
+  - Hangfire background job'ları
+  - Serilog konfigürasyonu
+  - E-posta ve SMS provider'ları
+  ============================================================================
+-->
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <RootNamespace>CleanTenant.Infrastructure</RootNamespace>
+    <AssemblyName>CleanTenant.Infrastructure</AssemblyName>
+    <IsPackable>true</IsPackable>
+    <PackageId>CleanTenant.Infrastructure</PackageId>
+    <Description>CleanTenant Infrastructure Layer - EF Core, Redis, Security, Background Jobs</Description>
+  </PropertyGroup>
+
+  <!-- Katman Referansları: Infrastructure → Application (transitively Domain + Shared) -->
+  <ItemGroup>
+    <ProjectReference Include="..\CleanTenant.Application\CleanTenant.Application.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- ================================================================
+         VERİTABANI — Entity Framework Core + PostgreSQL
+         ================================================================ -->
+    <!-- EF Core ana paket: DbContext, migrations, LINQ sorguları -->
+    <PackageReference Include="Microsoft.EntityFrameworkCore" Version="$(EfCoreVersion)" />
+    
+    <!-- Npgsql: PostgreSQL provider — EF Core'un PostgreSQL ile konuşmasını sağlar -->
+    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="$(EfCoreVersion)" />
+    
+    <!-- EF Core Tools: Migration oluşturma ve uygulama (dotnet ef) -->
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Tools" Version="$(EfCoreVersion)">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+
+    <!-- ================================================================
+         KİMLİK YÖNETİMİ — Kendi Identity Sınıflarımız + JWT
+         ================================================================ -->
+    <!-- Microsoft.Identity KULLANMIYORUZ — kendi sınıflarımız var:
+         - ApplicationUser (Domain katmanında)
+         - SecurityHelper (Shared — PBKDF2 şifre hash'leme)
+         - TokenService (Infrastructure — JWT üretim/doğrulama)
+         - SessionManager (Infrastructure — oturum yönetimi)
+    -->
+    
+    <!-- JWT Bearer: Token tabanlı kimlik doğrulama middleware'i -->
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="$(IdentityVersion)" />
+
+    <!-- ================================================================
+         CACHE — Redis (Dağıtık)
+         ================================================================ -->
+    <!-- StackExchange.Redis: Redis istemcisi — oturum, cache, pub/sub -->
+    <PackageReference Include="StackExchange.Redis" Version="$(StackExchangeRedisVersion)" />
+
+    <!-- ================================================================
+         BACKGROUND JOBS — Hangfire
+         ================================================================ -->
+    <!-- Hangfire Core: Job tanımlama, zamanlama, retry mekanizması -->
+    <PackageReference Include="Hangfire.Core" Version="$(HangfireVersion)" />
+    
+    <!-- Hangfire PostgreSQL: Job verilerini PostgreSQL'de saklar -->
+    <PackageReference Include="Hangfire.PostgreSql" Version="$(HangfireVersion)" />
+
+    <!-- 
+      Newtonsoft.Json: Hangfire.PostgreSql'in transitif bağımlılığı eski sürüm çekiyor.
+      Güvenlik açığını (NU1903) kapatmak için güncel sürümü doğrudan referans ediyoruz.
+    -->
+    <PackageReference Include="Newtonsoft.Json" Version="13.*" />
+
+    <!-- ================================================================
+         LOGLAMA — Serilog
+         ================================================================ -->
+    <!-- Serilog: Yapısal loglama framework'ü -->
+    <PackageReference Include="Serilog.AspNetCore" Version="$(SerilogAspNetCoreVersion)" />
+    
+    <!-- Serilog PostgreSQL Sink: Logları audit veritabanına yazar -->
+    <PackageReference Include="Serilog.Sinks.PostgreSQL" Version="$(SerilogSinksPostgreSqlVersion)" />
+    
+    <!-- Serilog Seq Sink: Seq log sunucusuna gönderir (geliştirme ortamı) -->
+    <PackageReference Include="Serilog.Sinks.Seq" Version="$(SerilogSinksSeqVersion)" />
+  </ItemGroup>
+
+</Project>

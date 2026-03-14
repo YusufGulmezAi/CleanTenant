@@ -1,0 +1,40 @@
+<!--
+  ============================================================================
+  CleanTenant.Domain — Proje Dosyası
+  ============================================================================
+  Clean Architecture'ın EN İÇ KATMANI.
+  
+  ALTIN KURAL: Bu katmanın HİÇBİR dış bağımlılığı (NuGet paketi) olmamalıdır.
+  Neden? Çünkü Domain katmanı iş kurallarını temsil eder ve bu kurallar
+  hiçbir teknolojiye bağımlı olmamalıdır. EF Core, MediatR, Redis gibi
+  kütüphaneler değişebilir ama iş kuralları değişmez.
+  
+  Bu katman şunları içerir:
+  - Entity'ler (iş nesneleri)
+  - Value Object'ler (değer nesneleri)
+  - Domain Event'ler (alan olayları)
+  - Enum'lar (sabitler)
+  - Interface'ler (sözleşmeler — SADECE domain düzeyinde)
+  ============================================================================
+-->
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <!-- Domain katmanı bir class library'dir — çalıştırılabilir değildir -->
+    <RootNamespace>CleanTenant.Domain</RootNamespace>
+    <AssemblyName>CleanTenant.Domain</AssemblyName>
+    
+    <!-- NuGet paketi olarak yayınlanabilir -->
+    <IsPackable>true</IsPackable>
+    <PackageId>CleanTenant.Domain</PackageId>
+    <Description>CleanTenant Domain Layer - Entities, Value Objects, Domain Events</Description>
+  </PropertyGroup>
+
+  <!--
+    DİKKAT: Bu projede HİÇBİR PackageReference olmamalıdır.
+    Eğer bir gün buraya NuGet paketi ekleme ihtiyacı hissederseniz,
+    muhtemelen yanlış katmandayız demektir. O kodu Application veya
+    Infrastructure katmanına taşıyın.
+  -->
+
+</Project>

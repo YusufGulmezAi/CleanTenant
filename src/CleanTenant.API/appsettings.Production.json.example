@@ -1,0 +1,51 @@
+{
+  // ============================================================================
+  // Production ortamı ayarları — ŞABLON
+  // ============================================================================
+  // Bu dosyayı appsettings.Production.json olarak kopyalayınız.
+  // appsettings.Production.json git'e commit EDİLMEZ (.gitignore'da).
+  //
+  // Alternatif: Tüm değerler environment variable olarak da verilebilir.
+  // ============================================================================
+
+  "ConnectionStrings": {
+    "MainDatabase": "Host=<PRODUCTION_DB_HOST>;Port=5432;Database=cleantenant_main;Username=<DB_USER>;Password=<GÜÇLÜ_ŞİFRE>;Ssl Mode=Require;",
+    "AuditDatabase": "Host=<PRODUCTION_AUDIT_DB_HOST>;Port=5432;Database=cleantenant_audit;Username=<DB_USER>;Password=<GÜÇLÜ_ŞİFRE>;Ssl Mode=Require;",
+    "Redis": "<PRODUCTION_REDIS_HOST>:6379,password=<GÜÇLÜ_ŞİFRE>,ssl=true,abortConnect=false"
+  },
+
+  "CleanTenant": {
+    "Jwt": {
+      "Secret": "<EN_AZ_64_KARAKTER_KRIPTOGRAFİK_RASTGELE_STRING>"
+    },
+    "Session": {
+      "ValidateIpAddress": true,
+      "ValidateDeviceFingerprint": true,
+      "EnforceSingleSession": true
+    },
+    "AccessPolicy": {
+      "EnableRateLimit": true,
+      "DefaultRateLimitPerMinute": 30,
+      "EnableIpBlacklist": true
+    }
+  },
+
+  "Serilog": {
+    "MinimumLevel": {
+      "Default": "Warning",
+      "Override": {
+        "CleanTenant": "Information"
+      }
+    },
+    "WriteTo": [
+      { "Name": "Console" },
+      {
+        "Name": "PostgreSQL",
+        "Args": {
+          "connectionString": "<AUDIT_DB_CONNECTION_STRING>",
+          "tableName": "ApplicationLogs"
+        }
+      }
+    ]
+  }
+}

@@ -1,0 +1,108 @@
+<!--
+  ============================================================================
+  CleanTenant — Directory.Build.props
+  ============================================================================
+  Bu dosya tüm projelerde ortak olan ayarları merkezi olarak yönetir.
+  
+  NEDEN BU DOSYA VAR?
+  - Tüm projelerde aynı .NET versiyonu kullanılmasını garanti eder
+  - NuGet paket versiyonları tek yerden yönetilir (versiyon çakışması önlenir)
+  - Ortak C# dil özellikleri ve nullable referans tipi ayarları tek noktada
+  - NuGet paket metadata bilgileri tek yerden güncellenir
+  
+  Bu dosya solution (.sln) ile aynı dizinde olmalıdır.
+  MSBuild bu dosyayı otomatik olarak tüm alt dizinlerdeki projelere uygular.
+  ============================================================================
+-->
+<Project>
+
+  <!-- ========================================================================
+       ORTAK PROJE AYARLARI
+       Tüm projeler bu ayarları miras alır. Bireysel projeler override edebilir.
+       ======================================================================== -->
+  <PropertyGroup>
+    <!-- .NET 10 hedef framework — tüm projeler aynı versiyonu kullanır -->
+    <TargetFramework>net10.0</TargetFramework>
+    
+    <!-- C# 13: En güncel dil özellikleri (primary constructors, collection expressions vb.) -->
+    <LangVersion>latest</LangVersion>
+    
+    <!-- Nullable referans tipleri aktif — NullReferenceException'ları derleme zamanında yakala -->
+    <Nullable>enable</Nullable>
+    
+    <!-- Implicit usings: System, System.Collections.Generic vb. otomatik dahil -->
+    <ImplicitUsings>enable</ImplicitUsings>
+    
+    <!-- Derleme uyarılarını hata gibi ele al — temiz kod zorunluluğu -->
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    
+    <!-- Deterministic build: Aynı kaynak koddan her zaman aynı binary üretilir -->
+    <Deterministic>true</Deterministic>
+  </PropertyGroup>
+
+  <!-- ========================================================================
+       NUGET PAKET METADATA
+       NuGet'e yayınlanacak paketler için ortak bilgiler.
+       ======================================================================== -->
+  <PropertyGroup>
+    <Authors>CleanTenant Contributors</Authors>
+    <Company>CleanTenant</Company>
+    <Product>CleanTenant</Product>
+    <Description>Hierarchical Multi-Tenant Enterprise Framework for .NET 10</Description>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageProjectUrl>https://github.com/CleanTenant/CleanTenant</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/CleanTenant/CleanTenant</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PackageTags>multi-tenant;clean-architecture;blazor;mudblazor;enterprise;dotnet</PackageTags>
+    
+    <!-- Semantic Versioning: Major.Minor.Patch -->
+    <Version>1.0.0</Version>
+    <AssemblyVersion>1.0.0.0</AssemblyVersion>
+    <FileVersion>1.0.0.0</FileVersion>
+  </PropertyGroup>
+
+  <!-- ========================================================================
+       MERKEZİ PAKET VERSİYONLARI
+       Tüm NuGet paket versiyonları burada tanımlanır.
+       Projelerde $(PaketAdi) şeklinde referans edilir.
+       
+       TEK NOKTA YÖNETİMİ: Bir paketin versiyonunu güncellemek istediğinizde
+       SADECE bu dosyayı değiştirmeniz yeterlidir.
+       ======================================================================== -->
+  <PropertyGroup>
+    <!-- Entity Framework Core — ORM katmanı -->
+    <EfCoreVersion>10.0.*</EfCoreVersion>
+    
+    <!-- ASP.NET Identity — Kimlik yönetimi -->
+    <IdentityVersion>10.0.*</IdentityVersion>
+    
+    <!-- MediatR — CQRS pattern, pipeline behaviors -->
+    <MediatRVersion>12.*</MediatRVersion>
+    
+    <!-- FluentValidation — İş kuralı doğrulama -->
+    <FluentValidationVersion>11.*</FluentValidationVersion>
+    
+    <!-- Serilog — Yapısal loglama -->
+    <!-- Serilog.AspNetCore framework versiyonunu takip eder: .NET 10 → 10.* -->
+    <SerilogAspNetCoreVersion>10.*</SerilogAspNetCoreVersion>
+    <!-- Serilog.Sinks.PostgreSQL kendi versiyonlamasını kullanır (max 2.x) -->
+    <SerilogSinksPostgreSqlVersion>2.*</SerilogSinksPostgreSqlVersion>
+    <!-- Serilog.Sinks.Seq kendi versiyonlamasını kullanır -->
+    <SerilogSinksSeqVersion>8.*</SerilogSinksSeqVersion>
+    
+    <!-- Redis — Dağıtık cache -->
+    <StackExchangeRedisVersion>2.*</StackExchangeRedisVersion>
+    
+    <!-- Hangfire — Background job yönetimi -->
+    <HangfireVersion>1.*</HangfireVersion>
+    
+    <!-- MudBlazor — UI component kütüphanesi -->
+    <MudBlazorVersion>8.*</MudBlazorVersion>
+    
+    <!-- Test paketleri -->
+    <XUnitVersion>2.*</XUnitVersion>
+    <FluentAssertionsVersion>7.*</FluentAssertionsVersion>
+    <TestcontainersVersion>4.*</TestcontainersVersion>
+  </PropertyGroup>
+
+</Project>

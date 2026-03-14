@@ -1,0 +1,39 @@
+<!--
+  ============================================================================
+  CleanTenant.Domain.Tests — Domain Katmanı Birim Testleri
+  ============================================================================
+  Domain entity'lerinin factory method'ları, iş kuralları ve
+  domain event'lerini test eder. Hiçbir dış bağımlılık (DB, Redis)
+  gerektirmez — saf birim testleri.
+  ============================================================================
+-->
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <RootNamespace>CleanTenant.Domain.Tests</RootNamespace>
+    <IsPackable>false</IsPackable>
+    <!-- Test projelerinde uyarıları hata olarak ele almayı gevşetiyoruz -->
+    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+  </PropertyGroup>
+
+  <!-- Test edilen proje -->
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\CleanTenant.Domain\CleanTenant.Domain.csproj" />
+  </ItemGroup>
+
+  <!-- Test framework paketleri -->
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.*" />
+    <PackageReference Include="xunit" Version="$(XUnitVersion)" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="$(XUnitVersion)">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+    <PackageReference Include="FluentAssertions" Version="$(FluentAssertionsVersion)" />
+    <PackageReference Include="coverlet.collector" Version="6.*">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+  </ItemGroup>
+
+</Project>

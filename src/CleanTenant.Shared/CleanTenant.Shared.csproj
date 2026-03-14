@@ -1,0 +1,38 @@
+<!--
+  ============================================================================
+  CleanTenant.Shared — Ortak DTO ve Sabitler
+  ============================================================================
+  API ve BlazorUI arasında paylaşılan veri transfer nesneleri (DTO) ve sabitler.
+  
+  NEDEN AYRI BİR PROJE?
+  Blazor UI, API'ye HTTP istekleri gönderirken aynı DTO sınıflarını kullanır.
+  Bu proje her iki tarafın da referans ettiği "ortak dil"dir.
+  Böylece API tarafında bir DTO değiştiğinde, UI tarafı derleme hatası verir
+  ve uyumsuzluk çalışma zamanı yerine derleme zamanında yakalanır.
+  
+  Bu katman şunları içerir:
+  - DTO'lar (Data Transfer Objects)
+  - Sabitler (Rol adları, İzin adları, Cache key'leri)
+  - Ortak Enum'lar (API ve UI'da kullanılan)
+  - ApiResponse<T> (standart API yanıt modeli)
+  ============================================================================
+-->
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <RootNamespace>CleanTenant.Shared</RootNamespace>
+    <AssemblyName>CleanTenant.Shared</AssemblyName>
+    
+    <!-- Bu proje ayrı bir NuGet paketi olarak yayınlanır -->
+    <IsPackable>true</IsPackable>
+    <PackageId>CleanTenant.Shared</PackageId>
+    <Description>CleanTenant Shared Layer - DTOs, Constants shared between API and UI</Description>
+  </PropertyGroup>
+
+  <!--
+    Shared katmanı da Domain gibi minimal bağımlılık tutar.
+    Sadece System.Text.Json gibi BCL (Base Class Library) paketleri kullanılır.
+    Bu sayede hem API hem UI projeleri bu paketi hafifçe referans edebilir.
+  -->
+
+</Project>

@@ -1,0 +1,54 @@
+# ============================================================================
+# CleanTenant API — Multi-Stage Docker Build
+# ============================================================================
+# Stage 1: Restore + Build (büyük SDK image)
+# Stage 2: Publish (optimized)
+# Stage 3: Runtime (küçük runtime image)
+# ============================================================================
+
+# Stage 1: Restore
+FROM mcr.microsoft.com/dotnet/sdk:10.0-preview AS restore
+WORKDIR /src
+
+# .csproj dosyalarını kopyala — layer caching için
+COPY Directory.Build.props .
+COPY CleanTenant.sln .
+COPY src/CleanTenant.Domain/CleanTenant.Domain.csproj src/CleanTenant.Domain/
+COPY src/CleanTenant.Shared/CleanTenant.Shared.csproj src/CleanTenant.Shared/
+COPY src/CleanTenant.Application/CleanTenant.Application.csproj src/CleanTenant.Application/
+COPY src/CleanTenant.Infrastructure/CleanTenant.Infrastructure.csproj src/CleanTenant.Infrastructure/
+COPY src/CleanTenant.API/CleanTenant.API.csproj src/CleanTenant.API/
+COPY src/CleanTenant.BlazorUI/CleanTenant.BlazorUI.csproj src/CleanTenant.BlazorUI/
+
+# Test projelerini de restore için kopyala (solution build için gerekli)
+COPY tests/CleanTenant.Domain.Tests/CleanTenant.Domain.Tests.csproj tests/CleanTenant.Domain.Tests/
+COPY tests/CleanTenant.Application.Tests/CleanTenant.Application.Tests.csproj tests/CleanTenant.Application.Tests/
+COPY tests/CleanTenant.Infrastructure.Tests/CleanTenant.Infrastructure.Tests.csproj tests/CleanTenant.Infrastructure.Tests/
+COPY tests/CleanTenant.API.IntegrationTests/CleanTenant.API.IntegrationTests.csproj tests/CleanTenant.API.IntegrationTests/
+
+RUN dotnet restore src/CleanTenant.API/CleanTenant.API.csproj
+
+# Stage 2: Build + Publish
+FROM restore AS publish
+COPY . .
+RUN dotnet publish src/CleanTenant.API/CleanTenant.API.csproj \
+    -c Release \
+    -o /app/publish \
+    --no-restore
+
+# Stage 3: Runtime (minimal image)
+FROM mcr.microsoft.com/dotnet/aspnet:10.0-preview AS runtime
+WORKDIR /app
+
+# Güvenlik: root olmayan kullanıcı ile çalıştır
+RUN adduser --disabled-password --gecos "" appuser
+USER appuser
+
+COPY --from=publish /app/publish .
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=3s --start-period=10s \
+    CMD curl -f http://localhost:8080/health || exit 1
+
+EXPOSE 8080
+ENTRYPOINT ["dotnet", "CleanTenant.API.dll"]

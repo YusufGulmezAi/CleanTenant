@@ -12,14 +12,14 @@ namespace CleanTenant.Application.Tests.Behaviors;
 public class CachingBehaviorTests
 {
     // Cacheable test query
-    private record TestCacheQuery : IRequest<Result<string>>, ICacheableQuery
+    public record TestCacheQuery : IRequest<Result<string>>, ICacheableQuery
     {
         public string CacheKey => "test:cache:key";
         public TimeSpan? CacheDuration => TimeSpan.FromMinutes(5);
     }
 
     // Non-cacheable test command
-    private record TestCommand : IRequest<Result<string>>;
+    public record TestCommand : IRequest<Result<string>>;
 
     [Fact]
     public async Task Handle_NonCacheableRequest_ShouldCallNextDirectly()
@@ -91,7 +91,7 @@ public class CachingBehaviorTests
 
 public class CacheInvalidationBehaviorTests
 {
-    private record TestInvalidateCommand : IRequest<Result<string>>, ICacheInvalidator
+    public record TestInvalidateCommand : IRequest<Result<string>>, ICacheInvalidator
     {
         public string[] CacheKeysToInvalidate => ["key1", "key2"];
     }

@@ -1,0 +1,22 @@
+Aşağıdaki ESKİ dosyaları SİLİN (ayrıştırılmış versiyonlarıyla değiştirildi):
+
+src/CleanTenant.Domain/Security/SecurityEntities.cs
+src/CleanTenant.Domain/Identity/Roles.cs
+src/CleanTenant.Domain/Enums/SecurityEnums.cs
+src/CleanTenant.Shared/DTOs/Auth/AuthDtos.cs
+src/CleanTenant.Shared/DTOs/Users/UserDtos.cs
+src/CleanTenant.Shared/DTOs/Companies/CompanyDtos.cs
+src/CleanTenant.Shared/DTOs/Tenants/TenantDtos.cs
+src/CleanTenant.Shared/Constants/SystemConstants.cs
+src/CleanTenant.Application/Common/Interfaces/IServices.cs
+
+NOT: Aşağıdaki dosyalar yerinde güncellendi (SİLMEYİN, üstüne yazın):
+src/CleanTenant.Domain/Identity/ApplicationUser.cs
+src/CleanTenant.Domain/Security/AccessPolicy.cs
+src/CleanTenant.Domain/Email/EmailLog.cs
+src/CleanTenant.Domain/Settings/SystemSetting.cs
+src/CleanTenant.Domain/Tenancy/Tenant.cs
+src/CleanTenant.Domain/Tenancy/Company.cs
+src/CleanTenant.Shared/DTOs/Common/ApiResponse.cs
+src/CleanTenant.Application/Common/Interfaces/IAuditDbContext.cs
+src/CleanTenant.API/Extensions/EndpointExtensions.cs

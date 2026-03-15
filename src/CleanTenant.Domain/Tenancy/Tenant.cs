@@ -224,21 +224,3 @@ public class Tenant : BaseAuditableEntity, ISoftDeletable
         Settings = settingsJson;
     }
 }
-
-// ============================================================================
-// DOMAIN EVENTS
-// Bu record'lar Tenant entity'si ile ilgili iş olaylarını temsil eder.
-// Application katmanında handler'lar tarafından dinlenir ve işlenir.
-// ============================================================================
-
-/// <summary>
-/// Yeni bir Tenant oluşturulduğunda tetiklenir.
-/// Handler'lar: Varsayılan rolleri oluştur, hoş geldin bildirimi gönder vb.
-/// </summary>
-public record TenantCreatedEvent(Guid TenantId, string TenantName) : IDomainEvent;
-
-/// <summary>
-/// Tenant'ın aktif/pasif durumu değiştiğinde tetiklenir.
-/// Handler'lar: Pasif edilmişse tüm aktif oturumları sonlandır vb.
-/// </summary>
-public record TenantStatusChangedEvent(Guid TenantId, bool IsActive) : IDomainEvent;

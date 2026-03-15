@@ -2,19 +2,21 @@
 
 ## 1. Genel Bakış
 
-CleanTenant, .NET 10 üzerinde Clean Architecture ile tasarlanmış, hiyerarşik multi-tenant enterprise framework'üdür.
+CleanTenant, .NET 10 üzerinde Clean Architecture ile tasarlanmış, hiyerarşik multi-tenant enterprise framework'üdür. Tek kod tabanıyla sınırsız sayıda tenant (mali müşavirlik firması), şirket ve kullanıcıyı güvenli şekilde yönetir.
 
 ### Teknoloji Yığını
 
 | Katman | Teknoloji | Amaç |
 |--------|-----------|------|
-| Runtime | .NET 10 | LTS, Minimal API native |
+| Runtime | .NET 10 | LTS, Minimal API, performans |
 | Veritabanı | PostgreSQL 17 | JSONB, text[], CIDR desteği |
 | Cache | Redis 7 | Oturum, izin cache, IP blacklist |
 | ORM | EF Core 10 | Code-first, interceptor, query filter |
 | CQRS | MediatR | Pipeline behaviors, command/query ayrımı |
 | Validation | FluentValidation | İş kuralı doğrulama |
-| Loglama | Serilog + Seq | Yapısal loglama |
+| E-posta | MailKit | SMTP, CC/BCC, çoklu ek, HTML template |
+| Background Jobs | Hangfire + PostgreSQL | E-posta kuyruğu, retry, dashboard |
+| Loglama | Serilog + Seq | Yapısal loglama, KVKK audit |
 | UI | MudBlazor | .NET native component kütüphanesi |
 | Container | Docker Compose | Development + Production |
 
@@ -22,215 +24,186 @@ CleanTenant, .NET 10 üzerinde Clean Architecture ile tasarlanmış, hiyerarşik
 
 | Metrik | Değer |
 |--------|-------|
-| Toplam dosya | 114 |
-| API Endpoint | 35 |
-| CQRS Handler | 25 |
+| Toplam dosya | 130+ |
+| API Endpoint | 53 |
+| CQRS Handler | 50 |
+| Domain Entity | 18 |
 | Pipeline Behavior | 5 |
-| Business Rule sınıfı | 4 |
 | Middleware | 5 |
-| Entity | 14 |
-| Unit Test | 94 |
+| Unit Test | 99 (tümü başarılı) |
+| Docker Servis | 5 |
+| Varsayılan Ayar | 21 |
 
----
-
-## 2. Clean Architecture Katmanları
-
-```
-┌─────────────────────────────────────────────────┐
-│                    API Layer                      │
-│    Minimal API Endpoints + Middleware Pipeline    │
-├─────────────────────────────────────────────────┤
-│               Application Layer                   │
-│   CQRS Handlers + Behaviors + Rules + Mappings   │
-├─────────────────────────────────────────────────┤
-│               Domain Layer (0 bağımlılık)         │
-│     Entities + Value Objects + Domain Events      │
-├─────────────────────────────────────────────────┤
-│             Infrastructure Layer                  │
-│    EF Core + Redis + JWT + Interceptors           │
-├─────────────────────────────────────────────────┤
-│               Shared Layer                        │
-│         DTOs + Constants + Helpers                │
-└─────────────────────────────────────────────────┘
-```
-
-### Bağımlılık Kuralı
-
-- Domain → Hiçbir şeye bağımlı değil (saf C#)
-- Application → Domain + Shared
-- Infrastructure → Application (transitif olarak Domain + Shared)
-- API → Infrastructure + Shared
-- Shared → Hiçbir şeye bağımlı değil
-
----
-
-## 3. Hiyerarşik Multi-Tenant Modeli
+## 2. Proje Yapısı (Clean Architecture)
 
 ```
-🌐 System (Platform Seviyesi)
- ├── 👤 SuperAdmin (100)         → Sınırsız yetki
- ├── 👥 SystemUser (80)          → Tüm tenant'larda rol bazlı
- │
- ├── 🏢 Tenant A (Mali Müşavirlik X)
- │    ├── 👤 TenantAdmin (60)    → Kendi tenant'ında tam yetki
- │    ├── 👥 TenantUser (40)     → Alt şirketlerde yetkili
- │    │
- │    ├── 🏭 Company 1 (ABC Ltd.)
- │    │    ├── 👤 CompanyAdmin (20) → Şirket içi tam yetki
- │    │    ├── 👥 CompanyUser (10)  → Rol bazlı
- │    │    └── 👥 Member (5)        → Sınırlı erişim
- │    │
- │    └── 🏭 Company 2 (XYZ A.Ş.)
- │
- └── 🏢 Tenant B (Mali Müşavirlik Y)
+CleanTenant/
+├── src/
+│   ├── CleanTenant.Domain/          → Entity, Enum, ValueObject (0 bağımlılık)
+│   │   ├── Common/                  → BaseEntity, ISoftDeletable, IDomainEvent
+│   │   ├── Identity/                → ApplicationUser, Roles (System/Tenant/Company)
+│   │   ├── Tenancy/                 → Tenant, Company
+│   │   ├── Security/                → SecurityEntities, AccessPolicy, UserPolicyAssignment
+│   │   ├── Settings/                → SystemSetting (hiyerarşik key-value)
+│   │   ├── Email/                   → EmailLog (PostgreSQL tracking)
+│   │   └── Enums/                   → UserLevel, TwoFactorMethod, SecurityEnums
+│   │
+│   ├── CleanTenant.Application/     → CQRS, Behaviors, Rules, Mappings
+│   │   ├── Common/
+│   │   │   ├── Behaviors/           → Validation, Caching, Logging, Authorization
+│   │   │   ├── Interfaces/          → IApplicationDbContext, ICacheService, IEmailService, ISettingsService
+│   │   │   ├── Rules/               → Authorization, Tenant, Company, User rules
+│   │   │   ├── Mappings/            → Entity → DTO (extension methods)
+│   │   │   └── Models/              → Result<T> (Railway pattern)
+│   │   └── Features/
+│   │       ├── Auth/                → Login, 2FA, Refresh, Password, Email Verification
+│   │       ├── Tenants/             → CRUD
+│   │       ├── Companies/           → CRUD (tenant-scoped)
+│   │       ├── Users/               → CRUD + Block + Force Logout
+│   │       ├── Roles/               → Tenant/Company Role CRUD + Assign
+│   │       ├── Sessions/            → List, Revoke
+│   │       ├── AccessPolicies/      → CRUD + Assign/Unassign + User Policy
+│   │       └── Settings/            → List, Get, Upsert, Delete + DefaultSeeder
+│   │
+│   ├── CleanTenant.Shared/          → DTOs, Constants, Helpers (API ↔ UI ortak)
+│   │   ├── DTOs/                    → Auth, Tenant, Company, User DTOs
+│   │   ├── Constants/               → SystemRoles, Permissions, UserLevels
+│   │   └── Helpers/                 → SecurityHelper (PBKDF2, TOTP, Base32), DateTimeHelper
+│   │
+│   ├── CleanTenant.Infrastructure/  → EF Core, Redis, JWT, SMTP, Hangfire
+│   │   ├── Persistence/             → DbContext, Interceptors, Seeds, Configurations
+│   │   ├── Caching/                 → RedisCacheService
+│   │   ├── Security/                → TokenService, SessionManager, CurrentUser, AccessPolicy
+│   │   ├── Email/                   → SmtpEmailService, EmailBackgroundJob
+│   │   └── Settings/                → SettingsService (DB → appsettings.json fallback)
+│   │
+│   ├── CleanTenant.API/             → Minimal API Endpoints, Middleware
+│   │   ├── Endpoints/               → 8 endpoint grubu (53 endpoint)
+│   │   ├── Middleware/              → Exception, Logging, IpBlacklist, RateLimit, Session
+│   │   └── Extensions/              → Result → IResult, Middleware pipeline
+│   │
+│   └── CleanTenant.BlazorUI/        → MudBlazor (geliştirme aşamasında)
+│
+├── tests/                           → 99 unit test
+│   ├── CleanTenant.Domain.Tests/
+│   ├── CleanTenant.Application.Tests/
+│   ├── CleanTenant.Infrastructure.Tests/
+│   └── CleanTenant.API.IntegrationTests/
+│
+├── docker/                          → Docker Compose (dev + prod)
+└── docs/                            → Teknik, idari, akış dokümanları
 ```
 
-### Çapraz Kullanıcı Kimliği
-
-Tek kullanıcı (tek e-posta) birden fazla seviyede rol sahibi olabilir:
-- Sistem kullanıcısı + 2 farklı tenant'ta TenantUser + 3 farklı şirkette CompanyUser
-
-### Context Switching
-
-Aynı tarayıcıda farklı sekmelerde farklı bağlamlar:
-- Header: `X-Tenant-Id`, `X-Company-Id`
-- Token bağlamdan bağımsız, her istek header ile bağlam belirler
-
----
-
-## 4. Veritabanı Mimarisi
-
-### İki Veritabanı Stratejisi
-
-| Veritabanı | İçerik | Neden Ayrı? |
-|------------|--------|-------------|
-| cleantenant_main | Kullanıcılar, Tenant'lar, Şirketler, Roller, Oturumlar | Operasyonel veri |
-| cleantenant_audit | AuditLog, SecurityLog, ApplicationLog | Yoğun INSERT, farklı retention |
-
-### Veri İzolasyonu
-
-- Shared Database + CompanyId filtre (Row-Level)
-- Global Query Filter ile otomatik WHERE koşulu
-- Şirket bazlı filtered backup desteği
-
-### Tablo Listesi (14 Entity)
-
-**Tenancy:** Tenants, Companies
-**Identity:** Users, SystemRoles, TenantRoles, CompanyRoles
-**Pivot:** UserSystemRoles, UserTenantRoles, UserCompanyRoles, UserCompanyMemberships
-**Security:** UserSessions, UserAccessPolicies, UserBlocks, IpBlacklists
-
----
-
-## 5. Güvenlik Mimarisi
-
-### Kimlik Doğrulama Akışı
+## 3. Hiyerarşik Multi-Tenancy Modeli
 
 ```
-Login → Şifre (PBKDF2) → 2FA Açık mı?
-                              │
-                     ┌────────┴────────┐
-                     │ EVET            │ HAYIR
-                     ▼                 ▼
-              TempToken (5dk)    AccessToken + RefreshToken
-                     │
-              Verify-2FA
-              (TempToken + Kod)
-                     │
-              ┌──────┴──────┐
-              │ BAŞARILI     │ BAŞARISIZ (max 3)
-              ▼              ▼
-        AccessToken +    TempToken silinir
-        RefreshToken     → Tekrar login
+System (Platform)
+  └── Tenant (Mali Müşavirlik Firması)
+       └── Company (Şirket/Müşteri)
+            └── Member (Çalışan/Kişi)
 ```
 
-### Token Yönetimi
+### Kullanıcı Seviyeleri (Numeric — karşılaştırma için)
 
-| Token | Ömür | Saklama | Amaç |
-|-------|------|---------|------|
-| AccessToken | 15 dk | Client | API erişim |
-| RefreshToken | 7 gün | Redis + DB (dual) | Token yenileme |
-| TempToken | 5 dk | Sadece Redis | 2FA aracı |
+| Seviye | Puan | Açıklama |
+|--------|------|----------|
+| SuperAdmin | 100 | Platform sahibi, sınırsız yetki |
+| SystemUser | 80 | Platform operatör |
+| TenantAdmin | 60 | Firma yöneticisi |
+| TenantUser | 40 | Firma çalışanı |
+| CompanyAdmin | 20 | Şirket yöneticisi |
+| CompanyUser | 10 | Şirket çalışanı |
+| CompanyMember | 5 | Şirket üyesi (sınırlı erişim) |
 
-### RefreshToken Dual Storage
+Kural: `currentLevel > targetLevel` gerekli (alt seviye üst seviyeye müdahale edemez).
 
-- Redis → Hızlı doğrulama (her refresh'te)
-- DB → Audit trail + Redis çökerse fallback
-- Admin cache silerse → Kullanıcı otomatik logout
+## 4. Güvenlik Mimarisi
 
-### Güvenlik Katmanları
+### 4.1 Kimlik Doğrulama (Custom — Microsoft.Identity kullanılmıyor)
 
-1. **IP Blacklist** → Redis SET, O(1) lookup, tüm isteklerde
-2. **Rate Limiting** → Sliding window, endpoint bazlı
-3. **Device Fingerprint** → IP + UserAgent hash, token çalınma koruması
-4. **IP Whitelist** → Kullanıcı bazlı, CIDR desteği
-5. **Zaman Kısıtlaması** → Haftanın günleri + saat aralığı
-6. **Anlık Bloke** → Redis flag, sonraki istekte 403
-7. **Force Logout** → Redis + DB session silme
+| Bileşen | Teknoloji |
+|---------|-----------|
+| Şifre Hash | PBKDF2 (SHA-256, 100K iterasyon, 128-bit salt) |
+| Token | JWT (HS256, kısa ömürlü Access + uzun ömürlü Refresh) |
+| 2FA | TOTP (RFC 6238, Google/Microsoft Authenticator) + E-posta |
+| Oturum | Redis + DB dual storage, device fingerprint |
 
----
+### 4.2 Token Akışı
 
-## 6. CQRS Pipeline
+- Access Token: 15dk (parametrik — DB Settings'ten yönetilebilir)
+- Refresh Token: 7 gün (rotation — her kullanımda yenisi üretilir)
+- TempToken: 5dk (2FA doğrulama öncesi geçici token)
 
-```
-İstek → [ValidationBehavior]
-              → Geçersiz? → Result<T>.ValidationFailure (422)
-        → [LoggingBehavior]
-              → Süre ölçüm, kullanıcı bilgisi, yapısal log
-        → [AuthorizationBehavior]
-              → [RequirePermission] → İzin yok? → Result<T>.Forbidden (403)
-              → [RequireTenantAccess] → Tenant yok? → 400
-              → [RequireCompanyAccess] → Şirket yok? → 400
-        → [CachingBehavior]
-              → ICacheableQuery? → Cache hit? → Cache'ten dön
-        → Handler (İş mantığı)
-        → [CacheInvalidationBehavior]
-              → ICacheInvalidator? → Başarılı? → Cache key'leri sil
-```
-
----
-
-## 7. Middleware Pipeline Sırası
+### 4.3 Erişim Politikası (3 Katmanlı)
 
 ```
-İstek geldi
-  ↓ [1] ExceptionHandling      → Tüm hataları yakala → ApiResponse
-  ↓ [2] RequestLogging          → HTTP istek logla (süre, IP, tenant)
-  ↓ [3] IpBlacklist             → Redis SET kontrolü → 403
-  ↓ [4] RateLimit               → Sliding window → 429
-  ↓ [5] Authentication          → JWT doğrula (.NET built-in)
-  ↓ [6] SessionValidation       → Redis: bloke? device? oturum?
-  ↓ [7] Authorization           → .NET built-in
-  ↓ [8] Endpoint                → Minimal API handler
+System Default  → Tüm IP/Zaman reddet (silinemez)
+Tenant Default  → Tenant oluşturulunca otomatik
+Company Default → Company oluşturulunca otomatik
+
+Kurallar:
+• Default politika silinemez
+• Özel politika silinince kullanıcılar default'a düşer
+• Politika YOKSA → giriş YASAK (açık kapı yok)
+• Cross-level işlemler KVKK loglarına kaydedilir
+• Gün numaralama: Pazartesi=1, Pazar=7
 ```
 
----
+### 4.4 Middleware Pipeline (Sıralı)
 
-## 8. EF Core Interceptor Zinciri
+```
+[1] ExceptionHandling → Hata yakalama
+[2] RequestLogging    → HTTP loglama
+[3] IpBlacklist       → Redis SET kontrolü
+[4] RateLimit         → Sliding window (Redis INCR)
+[5] Authentication    → JWT doğrulama
+[6] SessionValidation → Redis oturum kontrolü
+[7] Authorization     → İzin kontrolü
+```
 
-SaveChanges() çağrıldığında sırasıyla:
+## 5. E-posta Altyapısı
 
-1. **AuditableInterceptor** → CreatedBy/UpdatedBy/IP otomatik doldur
-2. **SoftDeleteInterceptor** → Delete → `IsDeleted = true` dönüştür
-3. **AuditTrailInterceptor** → Eski/yeni değerleri Audit DB'ye yaz
+| Özellik | Açıklama |
+|---------|----------|
+| SMTP | MailKit (Gmail, Outlook, Yandex, özel) |
+| Ek dosya | Çoklu dosya, CC, BCC desteği |
+| Template | HTML e-posta sarmalama (responsive) |
+| Tracking | PostgreSQL EmailLog tablosu |
+| Background | Hangfire job (3 retry, 30s-120s-300s) |
+| Dashboard | /hangfire → tüm job'ları izle |
 
----
+## 6. Ayar Yönetimi (Settings Module)
 
-## 9. Docker Ortamları
+```
+Öncelik sırası (en yüksekten düşüğe):
+[1] Company ayarı   → CompanyAdmin belirledi
+[2] Tenant ayarı    → TenantAdmin belirledi
+[3] System ayarı    → SuperAdmin belirledi (DB)
+[4] appsettings.json → Kod içi fallback
 
-### Development
+21 varsayılan ayar: JWT, Oturum, Şifre, 2FA, Erişim, E-posta, Genel
+Tümü UI'dan yönetilebilir, Redis cache (5dk TTL)
+```
 
-| Servis | Container | Port |
-|--------|-----------|------|
-| PostgreSQL Main | ct-db-main | 5432 |
-| PostgreSQL Audit | ct-db-audit | 5433 |
-| Redis | ct-redis | 6379 |
-| pgAdmin | ct-pgadmin | 5050 |
-| Seq | ct-seq | 5341 |
+## 7. Docker Ortamı
 
-### Production
+| Servis | Port | Açıklama |
+|--------|------|----------|
+| ct-db-main | 5432 | Ana PostgreSQL |
+| ct-db-audit | 5433 | Audit PostgreSQL |
+| ct-redis | 6379 | Redis cache + session |
+| ct-pgadmin | 5050 | Veritabanı yönetimi |
+| ct-seq | 5341 | Log izleme |
 
-- DB port'ları DIŞARI KAPALI
-- Sadece API portu açık (5000)
-- Multi-stage Docker build (SDK → Runtime)
-- Non-root user
+## 8. API Endpoint Özeti (53 endpoint)
+
+| Grup | Endpoint Sayısı | Açıklama |
+|------|----------------|----------|
+| Auth | 16 | Login, 2FA, Refresh, Password, Email Verify |
+| Tenants | 5 | CRUD + List |
+| Companies | 5 | CRUD + List (tenant-scoped) |
+| Users | 7 | CRUD + Block + Force Logout |
+| Roles | 6 | Tenant/Company Role CRUD + Assign |
+| Sessions | 3 | List + Revoke |
+| Access Policies | 7 | CRUD + Assign/Unassign + User Policy |
+| Settings | 4 | List + Get + Upsert + Delete |

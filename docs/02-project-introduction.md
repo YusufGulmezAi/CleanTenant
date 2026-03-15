@@ -1,132 +1,93 @@
-# 📋 CleanTenant — İdari Proje Tanıtım Dokümanı
+# 📋 CleanTenant — Proje Tanıtım Dokümanı
 
-## 1. Proje Özeti
+## Proje Vizyonu
 
-**Proje Adı:** CleanTenant
-**Tür:** Açık kaynak enterprise framework
-**Hedef:** Hiyerarşik multi-tenant uygulamalar için hazır altyapı
-**Lisans:** MIT (ücretsiz, ticari kullanıma açık)
-**Platform:** NuGet paket + GitHub açık kaynak
+CleanTenant, mali müşavirlik firmaları ve çok kiracılı (multi-tenant) işletmeler için geliştirilmiş, kurumsal düzeyde bir yazılım çatısıdır. Tek platform üzerinden sınırsız firma, şirket ve kullanıcıyı güvenli şekilde yönetmeyi hedefler.
 
----
+## Problem Tanımı
 
-## 2. Problem Tanımı
+Mali müşavirlik firmaları onlarca hatta yüzlerce şirkete hizmet verir. Her şirketin verileri birbirinden kesinlikle izole olmalı, farklı kullanıcılar farklı şirketlere farklı yetkilerle erişebilmeli, tüm işlemler denetlenebilir olmalıdır.
 
-### Mevcut Durum
+Mevcut çözümlerin eksikleri:
+- Tek seviyeli tenant yapısı (firma → şirket hiyerarşisi yok)
+- Yetki yönetimi yetersiz (IP/zaman bazlı erişim kontrolü yok)
+- Denetim izi eksik (KVKK uyumsuzluğu)
+- Teknoloji borcu yüksek (eski framework'ler)
 
-Enterprise uygulamalarda (özellikle mali müşavirlik, muhasebe, ERP) her firma kendi müşteri şirketlerini yönetir. Bu yapıda:
+## Çözüm: CleanTenant
 
-- Firma (Tenant) → Birden fazla müşteri şirketi yönetir
-- Her şirketin kendi kullanıcıları, rolleri ve verileri vardır
-- Bir kullanıcı birden fazla firmada/şirkette çalışabilir
-- Güvenlik gereksinimleri çok yüksektir (KVKK, yasal uyumluluk)
-
-### Piyasadaki Boşluk
-
-- Mevcut çözümler genellikle tek katmanlı tenant yapısı sunar
-- 3 katmanlı hiyerarşi (System → Tenant → Company) nadir bulunur
-- Çapraz kullanıcı kimliği (bir kullanıcı birden fazla yerde) desteklenmez
-- Enterprise seviye güvenlik (device fingerprint, anlık bloke) yoktur
-
----
-
-## 3. CleanTenant'ın Sunduğu Çözüm
-
-### Hiyerarşik Yapı
+### 3 Katmanlı Hiyerarşi
 
 ```
-Platform
- └── Firma (Tenant)      → Mali müşavirlik ofisi
-      └── Şirket (Company) → Müşteri şirketi
-           └── Üye (Member) → Sınırlı erişimli kullanıcı
+Platform (CleanTenant)
+  └── Tenant (Mali Müşavirlik Firması)
+       ├── Company A (Müşteri Şirket)
+       │    ├── CompanyAdmin (Muhasebeci)
+       │    ├── CompanyUser (Çalışan)
+       │    └── Member (Şirket ortağı — sınırlı erişim)
+       │
+       └── Company B (Başka Müşteri)
+            └── ...
 ```
 
 ### Temel Özellikler
 
 | Özellik | Açıklama |
 |---------|----------|
-| **3 Katmanlı Hiyerarşi** | System → Tenant → Company → Member |
-| **Çapraz Kimlik** | Tek kullanıcı, birden fazla firma/şirkette |
-| **7 Seviye Yetki** | SuperAdmin'den Member'a kadar |
-| **2FA + TempToken** | SMS, E-posta, Authenticator + Fallback |
-| **Anlık Kullanıcı İzleme** | Bloke, force logout, oturum takibi |
-| **Cihaz Doğrulama** | Token çalınma koruması |
-| **IP/Zaman Kısıtlaması** | Kullanıcı bazlı erişim politikası |
-| **Kapsamlı Audit Trail** | Kim, ne zaman, nereden, ne değiştirdi |
-| **Şirket Bazlı Yedekleme** | Filtered backup, background job |
-| **Parametrik Güvenlik** | Tüm ayarlar appsettings.json'dan |
+| Hiyerarşik Multi-Tenancy | System → Tenant → Company → Member |
+| Clean Architecture | Domain → Application → Infrastructure → API |
+| 53 API Endpoint | Auth, Tenant, Company, User, Role, Session, Policy, Settings |
+| İki Faktörlü Doğrulama | TOTP (Google/Microsoft Authenticator) + E-posta |
+| Erişim Politikası | IP whitelist + CIDR + Gün/Saat kısıtlama (3 seviye) |
+| E-posta Servisi | MailKit SMTP, CC/BCC, ek dosya, Hangfire background |
+| Parametrik Ayarlar | 21 ayar, DB'den yönetilebilir, tenant bazlı override |
+| Denetim İzi | AuditLog, SecurityLog, EmailLog (KVKK uyumlu) |
+| Token Yönetimi | JWT + Refresh Token rotation + Device fingerprint |
+| Redis Cache | Oturum, izin, ayar cache, IP blacklist |
+| Docker Ready | 5 servis, dev + production compose |
 
----
+### Güvenlik Yaklaşımı
 
-## 4. Hedef Kitle
+1. **Açık kapı yok** — Politika atanmamış kullanıcı giriş yapamaz
+2. **Default politika** — Her seviyede silinemez "tümünü reddet" politikası
+3. **Hiyerarşik yetki** — Alt seviye üst seviyeye müdahale edemez
+4. **Cross-level loglama** — Üst seviyenin alt seviyeye müdahalesi detaylı loglanır
+5. **Token rotation** — Her refresh'te eski token silinir, yenisi üretilir
+6. **2FA zorunlu** — SuperAdmin varsayılan olarak 2FA ile girer
 
-### Birincil Hedef
+### Hedef Kitle
 
-- **Mali müşavirlik firmaları** — Müşteri şirketlerinin muhasebesini yürütür
-- **Muhasebe yazılım firmaları** — SaaS muhasebe platformu geliştirir
-- **ERP geliştiricileri** — Multi-tenant ERP altyapısı arar
+- Mali müşavirlik firmaları
+- Çok müşterili SaaS platformları
+- Kurum içi multi-tenant uygulamalar
+- KVKK uyumlu denetim gerektiren projeler
 
-### İkincil Hedef
+### Lisans ve Dağıtım
 
-- **.NET geliştiricileri** — Clean Architecture öğrenmek ister
-- **Startup'lar** — Hızlı enterprise altyapı kurmak ister
-- **Eğitimciler** — Profesyonel mimari öğretmek için referans arar
+- **Lisans:** MIT (açık kaynak)
+- **GitHub:** https://github.com/YusufGulmezAi/CleanTenant
+- **NuGet:** Planlanan (paket olarak yayın)
 
----
+### Teknoloji Gereksinimleri
 
-## 5. Rekabet Analizi
+| Gereksinim | Minimum |
+|-----------|---------|
+| .NET | 10.0 |
+| PostgreSQL | 17 |
+| Redis | 7 |
+| Docker | 24+ |
+| Node.js | Gerekmiyor |
 
-| Özellik | CleanTenant | Finbuckle | ABP Framework | Boilerplate'ler |
-|---------|:-----------:|:---------:|:-------------:|:---------------:|
-| 3 Katmanlı Hiyerarşi | ✅ | ❌ | ❌ | ❌ |
-| Çapraz Kullanıcı | ✅ | ❌ | ❌ | ❌ |
-| 2FA + TempToken | ✅ | ❌ | ✅ | ❌ |
-| Device Fingerprint | ✅ | ❌ | ❌ | ❌ |
-| Anlık Bloke/Logout | ✅ | ❌ | Kısmen | ❌ |
-| IP/Zaman Kısıtlama | ✅ | ❌ | ❌ | ❌ |
-| Custom Identity | ✅ | ❌ | ❌ | ❌ |
-| Audit Trail (JSONB) | ✅ | ❌ | ✅ | Kısmen |
-| Ücretsiz (MIT) | ✅ | ✅ | Kısmen | ✅ |
-| .NET 10 | ✅ | ❌ | ❌ | Değişir |
+### Geliştirme Yol Haritası
 
----
-
-## 6. Proje Zaman Çizelgesi
-
-| Faz | Süre | Durum | İçerik |
-|-----|------|-------|--------|
-| Faz 1 | 2 hafta | ✅ Tamamlandı | Solution yapısı, Domain entity'ler, Docker |
-| Faz 2 | 2 hafta | ✅ Tamamlandı | EF Core, Interceptor'lar, Mappings, Rules |
-| Faz 3 | 2 hafta | ✅ Tamamlandı | Güvenlik modülü, Redis, Middleware pipeline |
-| Faz 4 | 2 hafta | ✅ Tamamlandı | CQRS Handlers, Minimal API, Auth (35 endpoint) |
-| Faz 5 | 2 hafta | ✅ Tamamlandı | Unit test'ler (94 test case) |
-| Faz 6 | Planlı | 📋 Planlanıyor | MudBlazor UI |
-| Faz 7 | Planlı | 📋 Planlanıyor | NuGet paket yayını, CI/CD |
-
----
-
-## 7. İş Modeli
-
-### Açık Kaynak (MIT Lisansı)
-
-- Framework tamamen ücretsiz
-- Ticari kullanıma açık
-- Fork edilebilir, değiştirilebilir
-
-### Gelir Potansiyeli (Opsiyonel)
-
-- Premium destek paketi
-- Danışmanlık hizmeti
-- Eğitim videoları / kurslar
-- Özel modül geliştirme
-
----
-
-## 8. Risk Analizi
-
-| Risk | Olasılık | Etki | Çözüm |
-|------|----------|------|-------|
-| .NET 10 breaking change | Düşük | Orta | Preview takip, erken adaptasyon |
-| NuGet paket uyumsuzluk | Orta | Düşük | Merkezi versiyon yönetimi (Directory.Build.props) |
-| Güvenlik açığı | Düşük | Yüksek | Penetrasyon testi, OWASP kontrol listesi |
-| Topluluk ilgisizliği | Orta | Orta | Detaylı dokümantasyon, eğitici kod yorumları |
+| Faz | Durum | Açıklama |
+|-----|-------|----------|
+| 1. Domain + Infrastructure | ✅ Tamamlandı | Entity'ler, EF Core, Redis, Docker |
+| 2. Güvenlik Modülü | ✅ Tamamlandı | JWT, 2FA, Session, AccessPolicy |
+| 3. CQRS + API | ✅ Tamamlandı | 53 endpoint, 50 handler |
+| 4. E-posta + Hangfire | ✅ Tamamlandı | MailKit, background job, tracking |
+| 5. Settings Modülü | ✅ Tamamlandı | 21 ayar, hiyerarşik, UI'dan yönetim |
+| 6. Access Policy v2 | ✅ Tamamlandı | 3 katman, default, KVKK loglama |
+| 7. Unit Tests | ✅ 99/99 başarılı | Domain, Application, Behavior testleri |
+| 8. Blazor UI (MudBlazor) | 🔄 Başlıyor | Login, Dashboard, CRUD sayfaları |
+| 9. NuGet + CI/CD | 📋 Planlanıyor | GitHub Actions, NuGet paket yayını |

@@ -331,12 +331,3 @@ public class ApplicationUser : BaseAuditableEntity, ISoftDeletable
         TimeZone = timeZone;
     }
 }
-
-// ============================================================================
-// DOMAIN EVENTS
-// ============================================================================
-
-public record UserCreatedEvent(Guid UserId, string Email) : IDomainEvent;
-public record UserStatusChangedEvent(Guid UserId, bool IsActive) : IDomainEvent;
-public record UserTwoFactorChangedEvent(Guid UserId, bool IsEnabled, TwoFactorMethod Method) : IDomainEvent;
-public record UserLockedOutEvent(Guid UserId, DateTime LockoutEnd) : IDomainEvent;

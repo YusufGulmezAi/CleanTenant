@@ -1,76 +1,97 @@
-# 🚀 CleanTenant — Başlangıç Rehberi
+# 🚀 CleanTenant — Başlangıç Kılavuzu
 
-## 1. Ön Gereksinimler
+## Ön Gereksinimler
 
-- [.NET 10 SDK](https://dotnet.microsoft.com/download)
-- [Docker Desktop](https://www.docker.com/products/docker-desktop/)
-- [Git](https://git-scm.com/)
+- .NET 10 SDK
+- Docker Desktop
+- Git
 
-## 2. Kurulum
+## 1. Projeyi Kur
 
 ```bash
-git clone https://github.com/<KULLANICI>/CleanTenant.git
+git clone https://github.com/YusufGulmezAi/CleanTenant.git
 cd CleanTenant
 ```
 
-## 3. Ortam Değişkenlerini Yapılandır
+## 2. Ortam Değişkenlerini Ayarla
 
 ```bash
 cp .env.example .env
-# .env dosyasını düzenle — development için varsayılan değerleri gir
+# .env dosyasını aç ve şifreleri doldur
 ```
 
-## 4. Docker Servislerini Başlat
+## 3. Docker Servislerini Başlat
 
-```powershell
+```bash
 cd docker
 docker-compose --env-file ../.env up -d
-```
-
-### Temizleyip Sıfırdan Başlamak İçin
-
-```powershell
-cd docker
-.\cleanup.ps1
-```
-
-## 5. Servislerin Sağlığını Kontrol Et
-
-```powershell
+# 15 saniye bekle
 docker-compose --env-file ../.env ps
 ```
 
-Tüm servisler "healthy" veya "running" olmalıdır.
+5 servis çalışmalı: `ct-db-main`, `ct-db-audit`, `ct-redis`, `ct-pgadmin`, `ct-seq`
 
-## 6. API'yi Çalıştır
+## 4. Migration Oluştur ve Uygula
 
 ```bash
-cd ../src/CleanTenant.API
-dotnet run
+cd ..
+dotnet ef migrations add InitialCreate --project src/CleanTenant.Infrastructure --startup-project src/CleanTenant.API --context ApplicationDbContext --output-dir Persistence/Migrations/Main
+dotnet ef migrations add InitialCreate --project src/CleanTenant.Infrastructure --startup-project src/CleanTenant.API --context AuditDbContext --output-dir Persistence/Migrations/Audit
+dotnet ef database update --project src/CleanTenant.Infrastructure --startup-project src/CleanTenant.API --context ApplicationDbContext
+dotnet ef database update --project src/CleanTenant.Infrastructure --startup-project src/CleanTenant.API --context AuditDbContext
 ```
 
-## 7. Testleri Çalıştır
+## 5. Build ve Çalıştır
 
 ```bash
-cd ../..
+dotnet build
+dotnet run --project src/CleanTenant.API
+```
+
+## 6. İlk Erişim
+
+| URL | Açıklama |
+|-----|----------|
+| http://localhost:54491/health | Health check |
+| http://localhost:54491/scalar/v1 | API dokümantasyonu (Dark mode) |
+| http://localhost:5050 | pgAdmin |
+| http://localhost:5341 | Seq log viewer |
+| http://localhost:54491/hangfire | Hangfire dashboard |
+
+## 7. İlk Login
+
+```json
+POST /api/auth/login
+{
+  "email": "admin@cleantenant.com",
+  "password": "Admin123!"
+}
+```
+
+SuperAdmin 2FA aktif — `verify-2fa` ile devam et (dev kodu: `123456`).
+
+## 8. Testleri Çalıştır
+
+```bash
 dotnet test
+# 99 test, 99 başarılı
 ```
 
-## 8. Erişim Noktaları
+## 9. E-posta Yapılandırması (Opsiyonel)
 
-| Servis | URL | Açıklama |
-|--------|-----|----------|
-| API | https://localhost:5001 | Minimal API |
-| Scalar UI | https://localhost:5001/scalar/v1 | API Dokümantasyonu |
-| pgAdmin | http://localhost:5050 | PostgreSQL Yönetim |
-| Seq | http://localhost:5341 | Log Paneli |
+`appsettings.Development.json` → `EmailSettings` bölümünü doldur:
 
-## 9. pgAdmin'de Veritabanı Bağlantısı
+```json
+"EmailSettings": {
+    "Enabled": true,
+    "Host": "smtp.gmail.com",
+    "Port": 587,
+    "Username": "your@gmail.com",
+    "Password": "xxxx xxxx xxxx xxxx",
+    "FromAddress": "your@gmail.com",
+    "FromName": "CleanTenant",
+    "UseSsl": true
+}
+```
 
-1. http://localhost:5050 adresine gidin
-2. .env'deki PGADMIN_EMAIL / PGADMIN_PASSWORD ile giriş
-3. Add New Server:
-   - **Main DB**: Host=`ct-db-main`, Port=`5432`, User=`cleantenant`
-   - **Audit DB**: Host=`ct-db-audit`, Port=`5432`, User=`cleantenant`
-
-> Not: pgAdmin Docker ağı içinden bağlanır, Host olarak container adını kullanın.
+Gmail App Password: https://myaccount.google.com/apppasswords

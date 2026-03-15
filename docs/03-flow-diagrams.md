@@ -1,56 +1,61 @@
 # 🔄 CleanTenant — Akış Diyagramları
 
-## 1. Login Akışı (TempToken ile 2FA)
+## 1. Login Akışı (2FA + Access Policy Kontrolü)
 
 ```
-[Kullanıcı]                      [API]                    [Redis]         [DB]
-     │                             │                         │               │
-     │── POST /auth/login ────────▶│                         │               │
-     │   {email, password}         │                         │               │
-     │                             │── IP Blacklist? ───────▶│               │
-     │                             │── Kullanıcı bul ───────────────────────▶│
-     │                             │── Şifre doğrula (PBKDF2)│               │
-     │                             │── 2FA açık mı?          │               │
-     │                             │                         │               │
-     │        ┌── 2FA KAPALI ──────┤                         │               │
-     │        │  Token üret        │── Session kaydet ──────▶│──────────────▶│
-     │◀───────│  {access, refresh} │                         │               │
-     │        └────────────────────┤                         │               │
-     │                             │                         │               │
-     │        ┌── 2FA AÇIK ────────┤                         │               │
-     │        │  TempToken üret    │── TempToken kaydet ────▶│               │
-     │◀───────│  {tempToken}       │   (5dk TTL)             │               │
-     │        └────────────────────┤                         │               │
-     │                             │                         │               │
-     │── POST /auth/verify-2fa ───▶│                         │               │
-     │   {tempToken, code}         │── TempToken çözümle ───▶│               │
-     │                             │── Kod doğrula           │               │
-     │                             │── TempToken SİL ───────▶│               │
-     │                             │── Token üret            │               │
-     │◀── {access, refresh} ──────│── Session kaydet ──────▶│──────────────▶│
+[Kullanıcı]                    [API]                    [Redis]         [DB]
+     │                           │                         │               │
+     │── POST /auth/login ──────▶│                         │               │
+     │                           │── IP Blacklist? ───────▶│               │
+     │                           │── Kullanıcı bul ──────────────────────▶│
+     │                           │── Şifre doğrula (PBKDF2)│               │
+     │                           │                         │               │
+     │                           │── Access Policy kontrol ─────────────▶│
+     │                           │   Politika var mı?      │               │
+     │                           │   DenyAllIps?            │               │
+     │                           │   IP listesinde mi?     │               │
+     │                           │   DenyAllTimes?          │               │
+     │                           │   Gün/Saat uygun mu?    │               │
+     │                           │   ❌ → 403 Erişim Engel │               │
+     │                           │   ✅ → Devam            │               │
+     │                           │                         │               │
+     │       ┌── 2FA KAPALI ─────┤                         │               │
+     │       │  Token üret       │── Session kaydet ──────▶│──────────────▶│
+     │◀──────│  {access, refresh}│                         │               │
+     │       └───────────────────┤                         │               │
+     │                           │                         │               │
+     │       ┌── 2FA AÇIK ───────┤                         │               │
+     │       │  TempToken üret   │── TempToken kaydet ────▶│ (5dk TTL)     │
+     │◀──────│  {tempToken}      │                         │               │
+     │       └───────────────────┤                         │               │
+     │                           │                         │               │
+     │── POST /auth/verify-2fa ─▶│                         │               │
+     │   {tempToken, code}       │── TOTP/Email doğrula ──▶│               │
+     │                           │── TempToken SİL ───────▶│               │
+     │◀── {access, refresh} ─────│── Session kaydet ──────▶│──────────────▶│
 ```
 
 ## 2. Token Refresh (Rotation + Dual Storage)
 
 ```
-[Kullanıcı]                      [API]                    [Redis]         [DB]
-     │                             │                         │               │
-     │── POST /auth/refresh ──────▶│                         │               │
-     │   {accessToken, refresh}    │                         │               │
-     │                             │── Bloke kontrolü ──────▶│               │
-     │                             │── RefreshToken hash     │               │
-     │                             │── Cache'te var mı? ────▶│               │
-     │                             │                    YOK ─┤               │
-     │                             │── DB'den kontrol ──────────────────────▶│
-     │                             │◀── Session bulundu ────────────────────│
-     │                             │                         │               │
-     │                             │── ESKİ session REVOKE ─────────────────▶│
-     │                             │── YENİ token çifti üret │               │
-     │                             │── YENİ session kaydet ─▶│──────────────▶│
-     │◀── {newAccess, newRefresh} ─│                         │               │
+[Kullanıcı]                    [API]                    [Redis]         [DB]
+     │                           │                         │               │
+     │── POST /auth/refresh ────▶│                         │               │
+     │   {accessToken, refresh}  │── Bloke kontrolü ──────▶│               │
+     │                           │── RefreshToken hash     │               │
+     │                           │── Cache'te var mı? ────▶│               │
+     │                           │   YOK → DB'den kontrol ──────────────▶│
+     │                           │                         │               │
+     │                           │── ESKİ session REVOKE ─────────────▶│
+     │                           │── YENİ token çifti üret │               │
+     │                           │── YENİ session kaydet ─▶│──────────────▶│
+     │◀── {newAccess, newRefresh}│                         │               │
+
+Not: Token süresi uzatılmaz! 15dk dolunca UI refresh yapar.
+Refresh Token her kullanımda yenisi üretilir (rotation).
 ```
 
-## 3. Middleware Pipeline Akışı
+## 3. Middleware Pipeline
 
 ```
 HTTP İstek Geldi
@@ -58,197 +63,183 @@ HTTP İstek Geldi
      ▼
 [1] ExceptionHandlingMiddleware
      │ Tüm alt katman hatalarını yakalar
-     │ Exception → ApiResponse dönüşümü
      ▼
 [2] RequestLoggingMiddleware
-     │ HTTP method, path, süre, IP, tenant loglar
+     │ HTTP method, path, süre, IP loglar
      ▼
 [3] IpBlacklistMiddleware
-     │ Redis SET kontrolü: SISMEMBER ct:blacklist:ips {ip}
-     │ ❌ Blacklist'te → 403 Forbidden (pipeline durur)
+     │ Redis SET: SISMEMBER ct:blacklist:ips {ip}
+     │ ❌ Blacklist'te → 403
      ▼
 [4] RateLimitMiddleware
      │ Redis INCR + EXPIRE (sliding window)
-     │ ❌ Limit aşıldı → 429 Too Many Requests
+     │ ❌ Limit aşıldı → 429
      ▼
 [5] Authentication (.NET built-in)
-     │ JWT token doğrulama
-     │ Claims çıkarma (userId, email)
+     │ JWT token doğrulama, Claims çıkarma
      ▼
 [6] SessionValidationMiddleware
      │ Redis'ten oturum kontrolü
-     │ ❌ Bloke → 403
-     │ ❌ Device fingerprint uyumsuz → 401
-     │ ❌ Session revoked → 401
+     │ ❌ Bloke/Revoked/Device uyumsuz → 401/403
      ▼
 [7] Authorization (.NET built-in)
      ▼
 [8] Endpoint (Minimal API Handler)
 ```
 
-## 4. CQRS Pipeline Akışı
+## 4. CQRS Pipeline
 
 ```
 Endpoint (ISender.Send)
      │
      ▼
 [1] ValidationBehavior
-     │ FluentValidation çalıştır
-     │ ❌ Geçersiz → Result<T>.ValidationFailure (422)
+     │ FluentValidation → ❌ 422
      ▼
 [2] LoggingBehavior
-     │ Stopwatch başlat
-     │ Kullanıcı/IP/Tenant bilgisi logla
-     │ >500ms → Warning logu
+     │ Stopwatch, >500ms → Warning
      ▼
 [3] AuthorizationBehavior
-     │ [RequirePermission("tenants.create")] → İzin kontrolü
-     │ [RequireTenantAccess] → X-Tenant-Id header kontrolü
-     │ [RequireCompanyAccess] → X-Company-Id header kontrolü
-     │ ❌ Yetkisiz → Result<T>.Forbidden (403)
+     │ [RequirePermission], [RequireTenantAccess] → ❌ 403
      ▼
-[4] CachingBehavior (sadece Query'ler)
-     │ ICacheableQuery? → Redis'ten kontrol
-     │ ✅ Cache hit → Handler ÇALIŞMAZ, cache'ten dön
-     │ ❌ Cache miss → Handler çalışsın → Sonucu cache'e yaz
+[4] CachingBehavior (Query)
+     │ Redis cache hit → Handler ÇALIŞMAZ
      ▼
 [5] Handler (İş Mantığı)
-     │ Business Rules kontrolü
-     │ Entity factory method / domain method
-     │ SaveChanges (Interceptor zinciri tetiklenir)
+     │ Business Rules + SaveChanges
      ▼
-[6] CacheInvalidationBehavior (sadece Command'lar)
-     │ ICacheInvalidator? → Başarılıysa cache key'leri sil
+[6] CacheInvalidationBehavior (Command)
+     │ Başarılıysa cache key'leri sil
      ▼
-Endpoint'e Result<T> döner → ApiResponse'a çevrilir
+Result<T> → ApiResponse
 ```
 
-## 5. EF Core Interceptor Zinciri
+## 5. Access Policy Kontrol Akışı
 
 ```
-dbContext.SaveChangesAsync() çağrıldı
+Kullanıcı giriş yapıyor
      │
      ▼
-[1] AuditableInterceptor
-     │ Added → CreatedBy, CreatedAt, CreatedFromIp doldur
-     │ Modified → UpdatedBy, UpdatedAt, UpdatedFromIp doldur
-     │ CreatedBy/CreatedAt değiştirilmesini ENGELLE
-     ▼
-[2] SoftDeleteInterceptor
-     │ Deleted state → Modified state'e çevir
-     │ IsDeleted = true, DeletedAt, DeletedBy, DeletedFromIp doldur
-     │ (Fiziksel DELETE yerine UPDATE çalışır)
-     ▼
-[3] AuditTrailInterceptor
-     │ Değişen entity'leri tara
-     │ OldValues (JSON), NewValues (JSON) oluştur
-     │ AffectedColumns listele
-     │ Audit DB'ye AuditLog kaydı yaz
-     ▼
-Veritabanına SQL çalıştır
+Kullanıcının atanmış politikası var mı?
+     │
+  ┌──┴──┐
+  │ YOK  │ VAR
+  ▼      ▼
+REDDET  Politika aktif mi?
+(403)        │
+        ┌────┴────┐
+        │ HAYIR    │ EVET
+        ▼          ▼
+      REDDET   DenyAllIps = true?
+      (403)        │
+             ┌─────┴─────┐
+             │ EVET       │ HAYIR
+             ▼            ▼
+          REDDET     IP listesinde mi? (CIDR kontrolü)
+          (403)           │
+                    ┌─────┴─────┐
+                    │ HAYIR      │ EVET
+                    ▼            ▼
+                 REDDET     DenyAllTimes = true?
+                 (403)           │
+                           ┌─────┴─────┐
+                           │ EVET       │ HAYIR
+                           ▼            ▼
+                        REDDET     Gün uygun mu? (Pzt=1, Paz=7)
+                        (403)           │
+                                  ┌─────┴─────┐
+                                  │ HAYIR      │ EVET
+                                  ▼            ▼
+                               REDDET     Saat uygun mu?
+                               (403)           │
+                                         ┌─────┴─────┐
+                                         │ HAYIR      │ EVET
+                                         ▼            ▼
+                                      REDDET      GİRİŞ OK ✅
+                                      (403)
+
+Her REDDET → SecurityLog'a detaylı kayıt
 ```
 
-## 6. Kullanıcı Ekleme Akışı (Çapraz Kimlik)
+## 6. Settings Hiyerarşik Okuma
 
 ```
-TenantAdmin: "Kullanıcı ekle"
+GetSetting("Jwt.AccessTokenExpirationMinutes", tenantId, companyId)
      │
      ▼
-E-posta adresini gir: user@example.com
+[1] Company ayarı var mı? (companyId + key)
      │
-     ▼
-Sistem e-postayı arar
-     │
-     ├── BULUNDU (mevcut kullanıcı)
-     │    │
-     │    ▼
-     │    UserTenantRoles tablosuna yeni satır ekle:
-     │    {userId, tenantId, tenantRoleId}
-     │    │
-     │    ▼
-     │    Redis cache temizle (roller/izinler yeniden hesaplanacak)
-     │    │
-     │    ▼
-     │    Kullanıcı artık bu tenant'ta da yetkili
-     │    (Mevcut oturumu etkilenmez, sonraki istekte yeni roller yüklenir)
-     │
-     └── BULUNAMADI (yeni kullanıcı)
-          │
-          ▼
-          ApplicationUser.Create(email, fullName)
-          PasswordHash = SecurityHelper.HashPassword(tempPassword)
-          │
-          ▼
-          UserTenantRoles tablosuna satır ekle
-          │
-          ▼
-          Davet e-postası gönder (TODO)
-          │
-          ▼
-          Kullanıcı ilk login'de şifre değiştirmeli
+  ┌──┴──┐
+  │ VAR  │ YOK
+  ▼      ▼
+DÖNÜŞ  [2] Tenant ayarı var mı? (tenantId + key)
+              │
+           ┌──┴──┐
+           │ VAR  │ YOK
+           ▼      ▼
+         DÖNÜŞ  [3] System ayarı var mı? (key)
+                       │
+                    ┌──┴──┐
+                    │ VAR  │ YOK
+                    ▼      ▼
+                  DÖNÜŞ  [4] appsettings.json fallback
+                                │
+                             ┌──┴──┐
+                             │ VAR  │ YOK
+                             ▼      ▼
+                           DÖNÜŞ   null
+
+Her seviyede Redis cache (5dk TTL)
 ```
 
-## 7. Hiyerarşik Yetki Kontrol Akışı
+## 7. E-posta Gönderim Akışı
 
 ```
-Kullanıcı bir işlem yapmak istiyor
+emailService.SendAsync(message)
      │
      ▼
-[1] Kullanıcı login mi? (Authentication)
-     │ ❌ → 401 Unauthorized
-     ▼
-[2] Kullanıcı bloke mi? (Redis kontrolü)
-     │ ❌ → 403 Forbidden "Hesabınız bloke edilmiştir"
-     ▼
-[3] İzni var mı? (Cache'ten kontrol)
-     │ Redis: ct:user:{id}:permissions
-     │ Cache miss → DB'den hesapla → Cache'e yaz
+EmailLog oluştur (PostgreSQL — Status: Queued)
      │
-     │ İzin kontrolü:
-     │   "tenants.create" == "tenants.create" → ✅ Tam eşleşme
-     │   "tenants.*" match "tenants.create"   → ✅ Wildcard
-     │   "*.*" match herhangi bir izin        → ✅ FullAccess
-     │ ❌ → 403 Forbidden
-     ▼
-[4] Hedef kullanıcıya müdahale edebilir mi? (Hiyerarşi)
-     │ currentLevel > targetLevel gerekli
+     ├── SendInBackground = true?
+     │        │
+     │        ▼
+     │   Hangfire.Enqueue(job)
+     │   EmailLog.HangfireJobId = jobId
+     │   → Hangfire Worker:
+     │        SMTP gönder
+     │        ✅ → EmailLog.Status = Sent
+     │        ❌ → Retry (30s, 120s, 300s)
+     │             3 başarısız → EmailLog.Status = Failed
      │
-     │ SuperAdmin (100) > SystemUser (80)     → ✅
-     │ TenantAdmin (60) > TenantUser (40)     → ✅
-     │ CompanyUser (10) > CompanyAdmin (20)    → ❌ ALT SEVİYE!
-     │ ❌ → 403 "Sizden üst seviyeye müdahale edemezsiniz"
-     ▼
-İşlem gerçekleştirilir
+     └── SendInBackground = false?
+              │
+              ▼
+         SMTP gönder (senkron)
+         EmailLog.Status = Sending → Sent/Failed
 ```
 
-## 8. Force Logout / Bloke Akışı
+## 8. Kullanıcı Oluşturma + Default Policy Atama
 
 ```
-Admin: "Kullanıcıyı bloke et"
+POST /api/users
      │
      ▼
-[1] Hiyerarşi kontrolü (admin > hedef kullanıcı mı?)
+Default politika var mı? (seviyeye göre)
      │
-     ▼
-[2] DB'ye UserBlock kaydı yaz
-     │ {userId, blockType, reason, expiresAt}
-     │
-     ▼
-[3] Redis'e bloke flag'i yaz
-     │ ct:user:{id}:blocked = true (TTL ile)
-     │
-     ▼
-[4] Tüm oturumları sonlandır
-     │ Redis: session:{id}, refresh, device SİL
-     │ DB: UserSessions → IsRevoked = true
-     │
-     ▼
-Kullanıcının sonraki isteği:
-     │
-     ▼
-SessionValidationMiddleware → Redis kontrolü
-     │ ct:user:{id}:blocked = true
-     │
-     ▼
-403 Forbidden: "Hesabınız bloke edilmiştir"
+  ┌──┴──┐
+  │ YOK  │ VAR
+  ▼      ▼
+400    Kullanıcı oluştur
+"Default    │
+ politika   ▼
+ yok!"   Default politika otomatik ata
+              │
+              ▼
+         Kullanıcı hazır (ama giriş yapamaz!)
+              │
+              ▼
+         Admin özel politika oluşturup atar
+              │
+              ▼
+         Kullanıcı artık giriş yapabilir ✅
 ```

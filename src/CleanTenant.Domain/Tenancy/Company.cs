@@ -177,10 +177,3 @@ public class Company : BaseTenantEntity
         Settings = settingsJson;
     }
 }
-
-// ============================================================================
-// DOMAIN EVENTS
-// ============================================================================
-
-public record CompanyCreatedEvent(Guid CompanyId, Guid TenantId, string CompanyName) : IDomainEvent;
-public record CompanyStatusChangedEvent(Guid CompanyId, Guid TenantId, bool IsActive) : IDomainEvent;

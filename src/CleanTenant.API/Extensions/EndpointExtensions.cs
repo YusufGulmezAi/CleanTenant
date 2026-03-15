@@ -5,11 +5,6 @@ namespace CleanTenant.API.Extensions;
 /// <summary>
 /// Tüm Minimal API endpoint gruplarını kaydeden extension method.
 /// Program.cs'de <c>app.MapCleanTenantEndpoints()</c> ile çağrılır.
-/// 
-/// Yeni bir endpoint grubu eklerken:
-/// 1. Endpoints/ klasörüne XxxEndpoints.cs oluştur
-/// 2. MapXxxEndpoints() extension method'u tanımla
-/// 3. Bu dosyaya ekle
 /// </summary>
 public static class EndpointExtensions
 {
@@ -39,9 +34,8 @@ public static class EndpointExtensions
         // Sistem ayarları: /api/settings
         app.MapSettingsEndpoints();
 
-        // TODO: Gelecek fazlar:
-        // app.MapAuditEndpoints();     → /api/audit (audit log sorgulama)
-        // app.MapBackupEndpoints();    → /api/backups (şirket bazlı yedekleme)
+        // IP Kara Liste: /api/ip-blacklist
+        app.MapIpBlacklistEndpoints();
 
         return app;
     }

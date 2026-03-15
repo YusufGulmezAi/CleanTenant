@@ -103,19 +103,3 @@ public class SystemSetting : BaseEntity
         UpdatedAt = DateTime.UtcNow;
     }
 }
-
-public enum SettingValueType
-{
-    String = 0,
-    Int = 1,
-    Bool = 2,
-    Decimal = 3,
-    Json = 4
-}
-
-public enum SettingLevel
-{
-    System = 0,
-    Tenant = 1,
-    Company = 2
-}

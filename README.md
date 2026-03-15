@@ -1,81 +1,50 @@
 # 🏗️ CleanTenant
 
-> **Hierarchical Multi-Tenant Enterprise Framework for .NET 10**
+**Hiyerarşik Multi-Tenant Enterprise Framework**
 
-[![.NET](https://img.shields.io/badge/.NET-10.0-512BD4)](https://dotnet.microsoft.com)
-[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-17-336791)](https://www.postgresql.org)
-[![Redis](https://img.shields.io/badge/Redis-7-DC382D)](https://redis.io)
-[![License](https://img.shields.io/badge/License-MIT-green)](LICENSE)
+.NET 10 · PostgreSQL 17 · Redis 7 · MudBlazor · Docker
 
-## 🎯 Nedir?
+---
 
-CleanTenant, **3 katmanlı hiyerarşik multi-tenant** yapıda enterprise uygulamalar için hazır bir altyapı framework'üdür.
+## Nedir?
 
-```
-🌐 System (Platform)
- └── 🏢 Tenant (örn: Mali Müşavirlik Firması)
-      └── 🏭 Company (örn: Müşteri Şirketi)
-           └── 👥 Members
-```
+CleanTenant, Clean Architecture ile tasarlanmış, 3 katmanlı hiyerarşik multi-tenant framework'üdür. Mali müşavirlik firmaları ve çok kiracılı SaaS platformları için idealdir.
 
-## ✨ Özellikler
+## Özellikler
 
-**Mimari:** Clean Architecture, SOLID, CQRS + MediatR, Result Pattern, Custom Mapping
+- **53 API Endpoint** — Auth, Tenant, Company, User, Role, Session, Policy, Settings
+- **3 Katmanlı Hiyerarşi** — System → Tenant → Company → Member
+- **İki Faktörlü Doğrulama** — Google/Microsoft Authenticator (TOTP) + E-posta
+- **Erişim Politikası** — IP whitelist (CIDR) + Gün/Saat kısıtlama, 3 seviyeli default
+- **E-posta Servisi** — MailKit SMTP, CC/BCC, ekler, Hangfire arka plan, PostgreSQL tracking
+- **Parametrik Ayarlar** — 21 ayar, DB'den yönetilebilir, tenant/company override
+- **Token Rotation** — JWT Access + Refresh, device fingerprint, Redis + DB dual storage
+- **KVKK Uyumlu Denetim** — AuditLog, SecurityLog, EmailLog, cross-level loglama
+- **99 Unit Test** — Domain, Application, Behavior testleri (tümü başarılı)
+- **Docker Ready** — 5 servis (PostgreSQL×2, Redis, pgAdmin, Seq)
 
-**Güvenlik:** 2FA (SMS/Email/Authenticator + Fallback), JWT + TempToken, Device Fingerprint, IP Blacklist/Whitelist, Rate Limiting, Zaman Kısıtlaması, Anlık Bloke/Force Logout, RefreshToken Rotation + Dual Storage
-
-**Hiyerarşik Yetki:** SuperAdmin → SystemUser → TenantAdmin → TenantUser → CompanyAdmin → CompanyUser → CompanyMember, Attribute bazlı pipeline authorization
-
-**Audit:** Entity değişiklikleri (eski/yeni değer JSONB), Güvenlik logları, Yapısal loglama (Serilog + Seq), Ayrı audit veritabanı
-
-**Altyapı:** PostgreSQL 17, Redis 7, Docker Compose (Dev/Test/Demo/Production), MudBlazor UI, Hangfire Background Jobs, Şirket bazlı yedekleme
-
-## 🚀 Hızlı Başlangıç
+## Hızlı Başlangıç
 
 ```bash
-# 1. Klonla
-git clone https://github.com/CleanTenant/CleanTenant.git
+git clone https://github.com/YusufGulmezAi/CleanTenant.git
 cd CleanTenant
-
-# 2. Ortam değişkenlerini yapılandır
 cp .env.example .env
 
-# 3. Docker servislerini başlat
-cd docker && docker-compose --env-file ../.env up -d
-
-# 4. API'yi çalıştır
-cd ../src/CleanTenant.API && dotnet run
+cd docker && docker-compose --env-file ../.env up -d && cd ..
+dotnet build && dotnet run --project src/CleanTenant.API
 ```
 
-📖 Detaylı kurulum için [Başlangıç Rehberi](docs/getting-started.md)
+Detaylı kurulum: [docs/getting-started.md](docs/getting-started.md)
 
-## 🏛️ Proje Yapısı
+## Dokümanlar
 
-```
-src/
-├── CleanTenant.Domain          → Entity'ler, Enum'lar (sıfır bağımlılık)
-├── CleanTenant.Application     → CQRS, Behaviors, Rules, Mappings
-├── CleanTenant.Shared          → DTO'lar, Sabitler (API ↔ UI ortak)
-├── CleanTenant.Infrastructure  → EF Core, Redis, JWT, Interceptors
-├── CleanTenant.API             → Minimal API, Middleware pipeline
-└── CleanTenant.BlazorUI        → MudBlazor arayüz (gelecek faz)
+| Doküman | Açıklama |
+|---------|----------|
+| [Teknik Mimari](docs/01-technical-architecture.md) | Teknoloji, yapı, güvenlik detayları |
+| [Proje Tanıtımı](docs/02-project-introduction.md) | Vizyon, özellikler, yol haritası |
+| [Akış Diyagramları](docs/03-flow-diagrams.md) | Login, Token, Policy, Email akışları |
+| [Başlangıç Kılavuzu](docs/getting-started.md) | Kurulum ve ilk çalıştırma |
 
-tests/
-├── CleanTenant.Domain.Tests
-├── CleanTenant.Application.Tests
-├── CleanTenant.Infrastructure.Tests
-└── CleanTenant.API.IntegrationTests
-```
+## Lisans
 
-## 🔒 Güvenlik
-
-- Gizli bilgiler `.env` dosyasında (Git'e commit edilmez)
-- Production ayarları environment variable ile override edilir
-- JWT Secret minimum 64 karakter
-- Tüm DateTime'lar UTC olarak saklanır
-- Soft delete ile veri korunur
-- Kapsamlı audit trail
-
-## 📝 Lisans
-
-[MIT License](LICENSE)
+MIT — [LICENSE](LICENSE)

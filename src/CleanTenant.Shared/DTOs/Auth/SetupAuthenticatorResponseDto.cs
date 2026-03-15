@@ -10,4 +10,6 @@ public class SetupAuthenticatorResponseDto
 
     /// <summary>otpauth:// URI — QR kod oluşturmak için.</summary>
     public string QrCodeUri { get; set; } = default!;
+	// Mevcut property'lerin altına ekle:
+	public string QrCodeImageUrl { get; set; } = default!;
 }

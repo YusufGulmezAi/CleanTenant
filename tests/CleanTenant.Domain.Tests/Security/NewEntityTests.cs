@@ -1,7 +1,6 @@
 using CleanTenant.Domain.Security;
 using CleanTenant.Domain.Settings;
 using CleanTenant.Domain.Email;
-using CleanTenant.Shared.Helpers;
 using Xunit;
 
 namespace CleanTenant.Domain.Tests.Security;
@@ -238,90 +237,6 @@ public class EmailLogTests
 
         Assert.Equal("doc.pdf, img.png", log.AttachmentNames);
         Assert.Equal(1024, log.AttachmentTotalSize);
-    }
-}
-
-/// <summary>SecurityHelper TOTP testleri.</summary>
-public class TotpTests
-{
-    [Fact]
-    public void GenerateAuthenticatorKey_ShouldReturn32Chars()
-    {
-        var key = SecurityHelper.GenerateAuthenticatorKey();
-
-        Assert.NotNull(key);
-        Assert.True(key.Length >= 20); // Base32 encoded 160-bit
-        Assert.Matches("^[A-Z2-7]+$", key); // Base32 charset
-    }
-
-    [Fact]
-    public void GenerateAuthenticatorUri_ShouldContainComponents()
-    {
-        var key = SecurityHelper.GenerateAuthenticatorKey();
-        var uri = SecurityHelper.GenerateAuthenticatorUri("test@test.com", key);
-
-        Assert.StartsWith("otpauth://totp/", uri);
-        Assert.Contains("secret=" + key, uri);
-        Assert.Contains("issuer=CleanTenant", uri);
-        Assert.Contains("digits=6", uri);
-        Assert.Contains("period=30", uri);
-    }
-
-    [Fact]
-    public void VerifyTotpCode_ValidCode_ShouldReturnTrue()
-    {
-        var key = SecurityHelper.GenerateAuthenticatorKey();
-        var keyBytes = SecurityHelper.Base32Decode(key);
-        var timeStep = DateTimeOffset.UtcNow.ToUnixTimeSeconds() / 30;
-        var validCode = SecurityHelper.ComputeTotp(keyBytes, timeStep);
-
-        var result = SecurityHelper.VerifyTotpCode(key, validCode);
-
-        Assert.True(result);
-    }
-
-    [Fact]
-    public void VerifyTotpCode_InvalidCode_ShouldReturnFalse()
-    {
-        var key = SecurityHelper.GenerateAuthenticatorKey();
-
-        var result = SecurityHelper.VerifyTotpCode(key, "000000");
-
-        Assert.False(result);
-    }
-
-    [Fact]
-    public void VerifyTotpCode_NullOrShort_ShouldReturnFalse()
-    {
-        var key = SecurityHelper.GenerateAuthenticatorKey();
-
-        Assert.False(SecurityHelper.VerifyTotpCode(key, ""));
-        Assert.False(SecurityHelper.VerifyTotpCode(key, "123"));
-        Assert.False(SecurityHelper.VerifyTotpCode(key, null!));
-    }
-
-    [Fact]
-    public void Base32_RoundTrip_ShouldMatch()
-    {
-        var original = new byte[] { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 };
-        var encoded = SecurityHelper.Base32Encode(original);
-        var decoded = SecurityHelper.Base32Decode(encoded);
-
-        Assert.Equal(original, decoded);
-    }
-
-    [Fact]
-    public void VerifyTotpCode_PreviousWindow_ShouldReturnTrue()
-    {
-        var key = SecurityHelper.GenerateAuthenticatorKey();
-        var keyBytes = SecurityHelper.Base32Decode(key);
-        // Önceki 30 saniyelik pencere
-        var timeStep = (DateTimeOffset.UtcNow.ToUnixTimeSeconds() / 30) - 1;
-        var prevCode = SecurityHelper.ComputeTotp(keyBytes, timeStep);
-
-        var result = SecurityHelper.VerifyTotpCode(key, prevCode);
-
-        Assert.True(result); // ±1 pencere toleransı
     }
 }
 

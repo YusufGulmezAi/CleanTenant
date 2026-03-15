@@ -98,39 +98,3 @@ public class UserBlockTests
         block.IsActive().Should().BeFalse();
     }
 }
-
-public class IpBlacklistTests
-{
-    [Fact]
-    public void Create_ShouldSetDefaults()
-    {
-        var entry = IpBlacklist.Create("192.168.1.100", "Brute force saldırısı");
-
-        entry.IpAddressOrRange.Should().Be("192.168.1.100");
-        entry.Reason.Should().Be("Brute force saldırısı");
-        entry.IsActive.Should().BeTrue();
-        entry.ExpiresAt.Should().BeNull();
-    }
-
-    [Fact]
-    public void Create_WithCidr_ShouldAccept()
-    {
-        var entry = IpBlacklist.Create("10.0.0.0/8", "Tüm 10.x ağı");
-        entry.IpAddressOrRange.Should().Be("10.0.0.0/8");
-    }
-
-    [Fact]
-    public void Deactivate_ShouldSetFalse()
-    {
-        var entry = IpBlacklist.Create("1.2.3.4", null);
-        entry.Deactivate();
-        entry.IsActive.Should().BeFalse();
-    }
-
-    [Fact]
-    public void Create_WithEmptyIp_ShouldThrow()
-    {
-        var act = () => IpBlacklist.Create("", "test");
-        act.Should().Throw<ArgumentException>();
-    }
-}

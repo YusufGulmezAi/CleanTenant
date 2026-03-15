@@ -77,11 +77,11 @@ public class SmtpEmailService : IEmailService
         var auditDb = scope.ServiceProvider.GetRequiredService<IAuditDbContext>();
         auditDb.EmailLogs.Add(emailLog);
         await auditDb.SaveChangesAsync(ct);
-
-        // Arka plan gönderimi istenmişse Hangfire'a ver
-        if (message.SendInBackground)
+		// Arka plan gönderimi istenmişse Hangfire'a ver
+		if (message.SendInBackground)
         {
-            var jobClient = scope.ServiceProvider.GetService<Hangfire.IBackgroundJobClient>();
+            
+			var jobClient = scope.ServiceProvider.GetService<Hangfire.IBackgroundJobClient>();
             if (jobClient is not null)
             {
 				var jobId = Hangfire.BackgroundJob.Enqueue<EmailBackgroundJob>(

@@ -1,0 +1,122 @@
+@inherits LayoutComponentBase
+@inject ThemeService Theme
+@inject NavigationManager Nav
+@inject ApiClient Api
+@inject ILocalStorageService Storage
+@inject CleanTenantAuthStateProvider AuthState
+@inject ISnackbar Snackbar
+
+<MudLayout>
+    @* ── Top AppBar ─────────────────────────────────────────────── *@
+    <MudAppBar Elevation="1" Dense="true" Class="ct-appbar">
+        <MudIconButton Icon="@Icons.Material.Filled.Menu" Color="Color.Inherit"
+                       Edge="Edge.Start" OnClick="@ToggleDrawer" />
+
+        <MudImage Src="css/logo.svg" Alt="CleanTenant" Width="28" Height="28" Class="ml-2 mr-2" />
+        <MudText Typo="Typo.subtitle1" Class="ct-appbar-title">CleanTenant</MudText>
+
+        <MudSpacer />
+
+        @* Arama *@
+        <MudTextField T="string" Placeholder="Ara..." Adornment="Adornment.Start"
+                      AdornmentIcon="@Icons.Material.Filled.Search"
+                      Variant="Variant.Outlined" Margin="Margin.Dense"
+                      Class="ct-search-bar mr-4" Style="max-width: 280px;" />
+
+        @* Bildirimler *@
+        <MudBadge Content="3" Color="Color.Error" Overlap="true" Class="mr-2">
+            <MudIconButton Icon="@Icons.Material.Filled.Notifications" Color="Color.Default" />
+        </MudBadge>
+
+        @* Dark/Light Toggle *@
+        <MudTooltip Text="@(Theme.IsDarkMode ? "Açık Tema" : "Koyu Tema")">
+            <MudIconButton Icon="@(Theme.IsDarkMode ? Icons.Material.Filled.LightMode : Icons.Material.Filled.DarkMode)"
+                           Color="Color.Default" OnClick="OnToggleTheme" />
+        </MudTooltip>
+
+        @* Kullanıcı *@
+        <MudMenu AnchorOrigin="Origin.BottomRight" TransformOrigin="Origin.TopRight" Dense="true">
+            <ActivatorContent>
+                <MudAvatar Color="Color.Primary" Size="Size.Small" Class="ml-2 cursor-pointer">
+                    <MudIcon Icon="@Icons.Material.Filled.Person" />
+                </MudAvatar>
+            </ActivatorContent>
+            <ChildContent>
+                <MudMenuItem Icon="@Icons.Material.Filled.AccountCircle"
+                             OnClick="@(() => Nav.NavigateTo("/profile"))">Profil</MudMenuItem>
+                <MudMenuItem Icon="@Icons.Material.Filled.Settings"
+                             OnClick="@(() => Nav.NavigateTo("/settings"))">Ayarlar</MudMenuItem>
+                <MudDivider Class="my-1" />
+                <MudMenuItem Icon="@Icons.Material.Filled.Logout" OnClick="Logout">
+                    Çıkış Yap
+                </MudMenuItem>
+            </ChildContent>
+        </MudMenu>
+    </MudAppBar>
+
+    @* ── Sidebar ────────────────────────────────────────────────── *@
+    <MudDrawer @bind-Open="_drawerOpen" ClipMode="DrawerClipMode.Always" Elevation="0"
+               Variant="DrawerVariant.Mini" OpenMiniOnHover="true" Class="ct-drawer">
+        <MudNavMenu Dense="true" Class="pt-2">
+            <MudNavLink Href="/" Match="NavLinkMatch.All" Icon="@Icons.Material.Filled.Dashboard">
+                Dashboard
+            </MudNavLink>
+
+            <MudNavGroup Title="Yönetim" Icon="@Icons.Material.Filled.Business" Expanded="true">
+                <MudNavLink Href="/tenants" Icon="@Icons.Material.Filled.CorporateFare">Tenant'lar</MudNavLink>
+                <MudNavLink Href="/companies" Icon="@Icons.Material.Filled.Store">Şirketler</MudNavLink>
+                <MudNavLink Href="/users" Icon="@Icons.Material.Filled.People">Kullanıcılar</MudNavLink>
+                <MudNavLink Href="/roles" Icon="@Icons.Material.Filled.Badge">Roller</MudNavLink>
+            </MudNavGroup>
+
+            <MudNavGroup Title="Güvenlik" Icon="@Icons.Material.Filled.Security">
+                <MudNavLink Href="/sessions" Icon="@Icons.Material.Filled.Devices">Oturumlar</MudNavLink>
+                <MudNavLink Href="/access-policies" Icon="@Icons.Material.Filled.Policy">Erişim Politikaları</MudNavLink>
+                <MudNavLink Href="/ip-blacklist" Icon="@Icons.Material.Filled.Block">IP Kara Liste</MudNavLink>
+            </MudNavGroup>
+
+            <MudNavGroup Title="Sistem" Icon="@Icons.Material.Filled.Settings">
+                <MudNavLink Href="/settings" Icon="@Icons.Material.Filled.Tune">Ayarlar</MudNavLink>
+                <MudNavLink Href="/emails" Icon="@Icons.Material.Filled.Email">E-posta Logları</MudNavLink>
+            </MudNavGroup>
+        </MudNavMenu>
+    </MudDrawer>
+
+    @* ── Content ────────────────────────────────────────────────── *@
+    <MudMainContent Class="ct-main-content">
+        <MudContainer MaxWidth="MaxWidth.False" Class="pa-4">
+            @Body
+        </MudContainer>
+    </MudMainContent>
+</MudLayout>
+
+@code {
+    private bool _drawerOpen = true;
+
+    private void ToggleDrawer() => _drawerOpen = !_drawerOpen;
+
+    private void OnToggleTheme()
+    {
+        Theme.ToggleDarkMode();
+        StateHasChanged();
+    }
+
+    protected override void OnInitialized()
+    {
+        Theme.OnThemeChanged += StateHasChanged;
+    }
+
+    private async Task Logout()
+    {
+        try { await Api.PostAsync<object>("/api/auth/logout"); } catch { }
+        await Storage.RemoveItemAsync("accessToken");
+        await Storage.RemoveItemAsync("refreshToken");
+        AuthState.NotifyAuthenticationStateChanged();
+        Nav.NavigateTo("/login", forceLoad: true);
+    }
+
+    public void Dispose()
+    {
+        Theme.OnThemeChanged -= StateHasChanged;
+    }
+}

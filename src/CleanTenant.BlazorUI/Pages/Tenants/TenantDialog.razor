@@ -1,0 +1,87 @@
+@inject ApiClient Api
+@inject ISnackbar Snackbar
+
+<MudDialog>
+    <TitleContent>
+        <MudText Typo="Typo.h6">
+            <MudIcon Icon="@Icons.Material.Filled.CorporateFare" Class="mr-2" />
+            @(IsEdit ? "Tenant Düzenle" : "Yeni Tenant")
+        </MudText>
+    </TitleContent>
+    <DialogContent>
+        <MudTextField @bind-Value="_name" Label="Tenant Adı" Variant="Variant.Outlined"
+                      Margin="Margin.Dense" Required="true" Class="mb-3" />
+        <MudTextField @bind-Value="_identifier" Label="Tanımlayıcı (slug)" Variant="Variant.Outlined"
+                      Margin="Margin.Dense" Required="true" Class="mb-3"
+                      HelperText="Küçük harf, rakam ve tire. Örn: abc-mali" Disabled="IsEdit" />
+        <MudTextField @bind-Value="_contactEmail" Label="İletişim E-postası" Variant="Variant.Outlined"
+                      Margin="Margin.Dense" Class="mb-3" InputType="InputType.Email" />
+        <MudTextField @bind-Value="_contactPhone" Label="Telefon" Variant="Variant.Outlined"
+                      Margin="Margin.Dense" Class="mb-3" />
+        <MudTextField @bind-Value="_taxNumber" Label="Vergi No" Variant="Variant.Outlined"
+                      Margin="Margin.Dense" />
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel" Variant="Variant.Text">İptal</MudButton>
+        <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="Submit" Disabled="_saving">
+            @if (_saving) { <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" /> }
+            @(IsEdit ? "Güncelle" : "Oluştur")
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] private IMudDialogInstance MudDialog { get; set; } = default!;
+    [Parameter] public TenantDto? EditTenant { get; set; }
+    private bool IsEdit => EditTenant is not null;
+
+    private string _name = "";
+    private string _identifier = "";
+    private string? _contactEmail;
+    private string? _contactPhone;
+    private string? _taxNumber;
+    private bool _saving;
+
+    protected override void OnInitialized()
+    {
+        if (EditTenant is not null)
+        {
+            _name = EditTenant.Name;
+            _identifier = EditTenant.Identifier;
+            _contactEmail = EditTenant.ContactEmail;
+            _contactPhone = EditTenant.ContactPhone;
+        }
+    }
+
+    private async Task Submit()
+    {
+        if (string.IsNullOrWhiteSpace(_name) || string.IsNullOrWhiteSpace(_identifier))
+        {
+            Snackbar.Add("Ad ve tanımlayıcı zorunludur.", Severity.Warning);
+            return;
+        }
+
+        _saving = true;
+        try
+        {
+            var body = new { name = _name, identifier = _identifier, contactEmail = _contactEmail,
+                             contactPhone = _contactPhone, taxNumber = _taxNumber };
+
+            var result = IsEdit
+                ? await Api.PutAsync<object>($"/api/tenants/{EditTenant!.Id}", body)
+                : await Api.PostAsync<object>("/api/tenants", body);
+
+            if (result?.IsSuccess == true)
+            {
+                Snackbar.Add(IsEdit ? "Güncellendi." : "Oluşturuldu.", Severity.Success);
+                MudDialog.Close(DialogResult.Ok(true));
+            }
+            else
+                Snackbar.Add(result?.Message ?? "Hata oluştu.", Severity.Error);
+        }
+        catch (Exception ex) { Snackbar.Add(ex.Message, Severity.Error); }
+        finally { _saving = false; }
+    }
+
+    private void Cancel() => MudDialog.Cancel();
+}

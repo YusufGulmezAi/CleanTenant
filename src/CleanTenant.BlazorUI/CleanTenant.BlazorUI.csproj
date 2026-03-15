@@ -1,28 +1,14 @@
-<!--
-  ============================================================================
-  CleanTenant.BlazorUI — MudBlazor Blazor Web App
-  ============================================================================
-  Kullanıcı arayüzü katmanı. MudBlazor component kütüphanesi ile
-  modern, responsive bir yönetim paneli sunar.
-  API ile Shared katmanındaki DTO'lar üzerinden haberleşir.
-  ============================================================================
--->
 <Project Sdk="Microsoft.NET.Sdk.Web">
-
   <PropertyGroup>
     <RootNamespace>CleanTenant.BlazorUI</RootNamespace>
     <AssemblyName>CleanTenant.BlazorUI</AssemblyName>
     <IsPackable>false</IsPackable>
   </PropertyGroup>
-
-  <!-- BlazorUI sadece Shared katmanını referans eder — API ile HTTP üzerinden haberleşir -->
   <ItemGroup>
     <ProjectReference Include="..\CleanTenant.Shared\CleanTenant.Shared.csproj" />
   </ItemGroup>
-
   <ItemGroup>
-    <!-- MudBlazor: Material Design component kütüphanesi -->
     <PackageReference Include="MudBlazor" Version="$(MudBlazorVersion)" />
+    <PackageReference Include="Blazored.LocalStorage" Version="4.*" />
   </ItemGroup>
-
 </Project>

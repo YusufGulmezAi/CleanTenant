@@ -1,0 +1,134 @@
+@page "/tenants"
+@attribute [Authorize]
+@inject ApiClient Api
+@inject ISnackbar Snackbar
+@inject IDialogService DialogService
+
+<PageHeader Title="Tenant Yönetimi" Breadcrumb="Yönetim / Tenant'lar">
+    <MudButton Variant="Variant.Filled" Color="Color.Primary" Size="Size.Small"
+               StartIcon="@Icons.Material.Filled.Add" OnClick="OpenCreateDialog">
+        Yeni Tenant
+    </MudButton>
+</PageHeader>
+
+<MudPaper Class="ct-card" Elevation="0">
+    <MudTable Items="@_tenants" Dense="true" Hover="true" Loading="@_loading"
+              Class="ct-table" Breakpoint="Breakpoint.Sm" Striped="true">
+        <ToolBarContent>
+            <MudTextField @bind-Value="_searchString" Placeholder="Tenant ara..."
+                          Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search"
+                          IconSize="Size.Medium" Variant="Variant.Outlined" Margin="Margin.Dense"
+                          Immediate="true" Class="mt-0" Style="max-width: 300px;" />
+            <MudSpacer />
+            <MudIconButton Icon="@Icons.Material.Filled.Refresh" Size="Size.Small" OnClick="LoadData" />
+        </ToolBarContent>
+        <HeaderContent>
+            <MudTh>Ad</MudTh>
+            <MudTh>Tanımlayıcı</MudTh>
+            <MudTh>E-posta</MudTh>
+            <MudTh>Durum</MudTh>
+            <MudTh Style="width: 120px;">İşlem</MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd DataLabel="Ad">
+                <MudText Typo="Typo.body2" Style="font-weight: 500;">@context.Name</MudText>
+            </MudTd>
+            <MudTd DataLabel="Tanımlayıcı">
+                <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined" Class="ct-chip">
+                    @context.Identifier
+                </MudChip>
+            </MudTd>
+            <MudTd DataLabel="E-posta">@context.ContactEmail</MudTd>
+            <MudTd DataLabel="Durum">
+                <MudChip T="string" Size="Size.Small" Class="ct-chip"
+                         Color="@(context.IsActive ? Color.Success : Color.Error)">
+                    @(context.IsActive ? "Aktif" : "Pasif")
+                </MudChip>
+            </MudTd>
+            <MudTd>
+                <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small" Color="Color.Primary"
+                               OnClick="@(() => OpenEditDialog(context))" />
+                <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" Color="Color.Error"
+                               OnClick="@(() => DeleteTenant(context))" />
+            </MudTd>
+        </RowTemplate>
+        <NoRecordsContent>
+            <MudText Typo="Typo.body2" Align="Align.Center" Class="pa-4">
+                Henüz tenant oluşturulmamış.
+            </MudText>
+        </NoRecordsContent>
+        <PagerContent>
+            <MudTablePager />
+        </PagerContent>
+    </MudTable>
+</MudPaper>
+
+@code {
+    private List<TenantDto> _tenants = [];
+    private string _searchString = "";
+    private bool _loading = true;
+
+    protected override async Task OnInitializedAsync() => await LoadData();
+
+    private async Task LoadData()
+    {
+        _loading = true;
+        try
+        {
+            var result = await Api.GetAsync<List<TenantDto>>("/api/tenants");
+            if (result?.IsSuccess == true && result.Data is not null)
+                _tenants = result.Data;
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Hata: {ex.Message}", Severity.Error);
+        }
+        _loading = false;
+    }
+
+    private async Task OpenCreateDialog()
+    {
+        var parameters = new DialogParameters<TenantDialog>();
+        var options = new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true };
+        var dialog = await DialogService.ShowAsync<TenantDialog>("Yeni Tenant", parameters, options);
+        var result = await dialog.Result;
+        if (result is not null && !result.Canceled)
+            await LoadData();
+    }
+
+    private async Task OpenEditDialog(TenantDto tenant)
+    {
+        var parameters = new DialogParameters<TenantDialog> { { x => x.EditTenant, tenant } };
+        var options = new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true };
+        var dialog = await DialogService.ShowAsync<TenantDialog>("Tenant Düzenle", parameters, options);
+        var result = await dialog.Result;
+        if (result is not null && !result.Canceled)
+            await LoadData();
+    }
+
+    private async Task DeleteTenant(TenantDto tenant)
+    {
+        var parameters = new DialogParameters<ConfirmDialog>
+    {
+        { x => x.ContentText, $"'{tenant.Name}' tenant'ını silmek istediğinize emin misiniz?" },
+        { x => x.ButtonText, "Sil" },
+        { x => x.Color, Color.Error }
+    };
+
+        var dialog = await DialogService.ShowAsync<ConfirmDialog>("Silme Onayı", parameters,
+            new DialogOptions { MaxWidth = MaxWidth.ExtraSmall });
+        var result = await dialog.Result;
+
+        if (result is not null && !result.Canceled)
+        {
+            var apiResult = await Api.DeleteAsync<object>($"/api/tenants/{tenant.Id}");
+            if (apiResult?.IsSuccess == true)
+            {
+                Snackbar.Add("Tenant silindi.", Severity.Success);
+                await LoadData();
+            }
+            else
+                Snackbar.Add(apiResult?.Message ?? "Silinemedi.", Severity.Error);
+        }
+    }
+}

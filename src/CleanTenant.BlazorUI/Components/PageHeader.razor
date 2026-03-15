@@ -1,0 +1,15 @@
+<div class="ct-page-header">
+    <div>
+        <div class="ct-page-title">@Title</div>
+        <div class="ct-breadcrumb">@Breadcrumb</div>
+    </div>
+    <div class="d-flex gap-2">
+        @ChildContent
+    </div>
+</div>
+
+@code {
+    [Parameter] public string Title { get; set; } = "";
+    [Parameter] public string Breadcrumb { get; set; } = "";
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+}

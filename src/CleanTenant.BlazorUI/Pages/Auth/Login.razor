@@ -1,0 +1,184 @@
+@page "/login"
+@layout LoginLayout
+@inject ApiClient Api
+@inject ILocalStorageService Storage
+@inject NavigationManager Nav
+@inject CleanTenantAuthStateProvider AuthState
+@inject ISnackbar Snackbar
+@inject ThemeService Theme
+
+<div class="ct-login-card mud-paper" style="background: var(--mud-palette-surface);">
+    <div class="ct-login-logo">
+        <span style="color: var(--mud-palette-primary);">🏗️</span> CleanTenant
+    </div>
+    <div class="ct-login-subtitle">Kurumsal Yönetim Platformu</div>
+
+    @if (!_show2FA)
+    {
+        @* ── Login Formu ──────────────────────────────────────── *@
+        <MudTextField @bind-Value="_email" Label="E-posta" Variant="Variant.Outlined"
+                      InputType="InputType.Email" Adornment="Adornment.Start"
+                      AdornmentIcon="@Icons.Material.Filled.Email" Margin="Margin.Dense"
+                      Class="mb-3" FullWidth="true" Disabled="_loading" />
+
+        <MudTextField @bind-Value="_password" Label="Şifre" Variant="Variant.Outlined"
+                      InputType="@(_showPassword? InputType.Text: InputType.Password)"
+                      Adornment="Adornment.End"
+                      AdornmentIcon="@(_showPassword? Icons.Material.Filled.Visibility : Icons.Material.Filled.VisibilityOff)"
+                      OnAdornmentClick="@(() => _showPassword = !_showPassword)"
+                      Margin="Margin.Dense" Class="mb-4" FullWidth="true" Disabled="_loading" />
+
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" FullWidth="true"
+                   Size="Size.Large" OnClick="HandleLogin" Disabled="_loading"
+                   Class="mb-3" Style="height: 48px; border-radius: 10px; font-weight: 600;">
+            @if (_loading)
+            {
+                <MudProgressCircular Color="Color.Surface" Size="Size.Small" Indeterminate="true" Class="mr-2" />
+            }
+            Giriş Yap
+        </MudButton>
+
+        <div style="text-align: center;">
+            <MudLink Href="/forgot-password" Typo="Typo.body2" Color="Color.Primary">Şifremi Unuttum</MudLink>
+        </div>
+    }
+    else
+    {
+        @* ── 2FA Doğrulama ────────────────────────────────────── *@
+        <MudAlert Severity="Severity.Info" Dense="true" Class="mb-4" Variant="Variant.Outlined">
+            @if (_twoFactorMethod == "Email")
+            {
+                <span>E-posta adresinize 6 haneli doğrulama kodu gönderildi.</span>
+            }
+            else
+            {
+                <span>Authenticator uygulamanızdaki 6 haneli kodu giriniz.</span>
+            }
+        </MudAlert>
+
+        <MudTextField @bind-Value="_twoFactorCode" Label="Doğrulama Kodu" Variant="Variant.Outlined"
+                      Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Lock"
+                      Margin="Margin.Dense" Class="mb-4" FullWidth="true"
+                      MaxLength="6" Placeholder="000000" Disabled="_loading"
+                      Style="font-size: 1.5rem; letter-spacing: 8px; text-align: center;" />
+
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" FullWidth="true"
+                   Size="Size.Large" OnClick="HandleVerify2FA" Disabled="_loading"
+                   Class="mb-3" Style="height: 48px; border-radius: 10px; font-weight: 600;">
+            @if (_loading)
+            {
+                <MudProgressCircular Color="Color.Surface" Size="Size.Small" Indeterminate="true" Class="mr-2" />
+            }
+            Doğrula
+        </MudButton>
+
+        <div style="text-align: center;">
+            <MudLink Typo="Typo.body2" Color="Color.Primary" OnClick="() => _show2FA = false">
+                Geri Dön
+            </MudLink>
+        </div>
+    }
+</div>
+
+@* Dark/Light toggle (login ekranında) *@
+<MudIconButton Icon="@(Theme.IsDarkMode? Icons.Material.Filled.LightMode : Icons.Material.Filled.DarkMode)"
+               Color="Color.Surface" Style="position: fixed; top: 16px; right: 16px; z-index: 10;"
+               OnClick="@(() => { Theme.ToggleDarkMode(); StateHasChanged(); })" />
+
+@code {
+    private string _email = "";
+    private string _password = "";
+    private string _twoFactorCode = "";
+    private string? _tempToken;
+    private string? _twoFactorMethod;
+    private bool _show2FA;
+    private bool _showPassword;
+    private bool _loading;
+
+    private async Task HandleLogin()
+    {
+        if (string.IsNullOrWhiteSpace(_email) || string.IsNullOrWhiteSpace(_password))
+        {
+            Snackbar.Add("E-posta ve şifre zorunludur.", Severity.Warning);
+            return;
+        }
+
+        _loading = true;
+        try
+        {
+            var result = await Api.PostAnonymousAsync<LoginResponseDto>("/api/auth/login",
+                new { email = _email, password = _password });
+
+            if (result is null || !result.IsSuccess)
+            {
+                Snackbar.Add(result?.Message ?? "Bağlantı hatası.", Severity.Error);
+                return;
+            }
+
+            var data = result.Data!;
+
+            if (data.Requires2FA)
+            {
+                _tempToken = data.TempToken;
+                _twoFactorMethod = data.TwoFactorMethod;
+                _show2FA = true;
+                Snackbar.Add("2FA doğrulama kodu giriniz.", Severity.Info);
+            }
+            else
+            {
+                await SaveTokensAndNavigate(data);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Hata: {ex.Message}", Severity.Error);
+        }
+        finally { _loading = false; }
+    }
+
+    private async Task HandleVerify2FA()
+    {
+        if (string.IsNullOrWhiteSpace(_twoFactorCode) || _twoFactorCode.Length != 6)
+        {
+            Snackbar.Add("6 haneli doğrulama kodu giriniz.", Severity.Warning);
+            return;
+        }
+
+        _loading = true;
+        try
+        {
+            var http = new HttpClient { BaseAddress = new Uri("http://localhost:54491") };
+            var response = await http.PostAsJsonAsync("/api/auth/verify-2fa",
+                new { tempToken = _tempToken, code = _twoFactorCode });
+            var json = await response.Content.ReadAsStringAsync();
+
+            var result = System.Text.Json.JsonSerializer.Deserialize<ApiResponse<LoginResponseDto>>(json,
+                new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+
+            if (result?.Data?.AccessToken is not null)
+            {
+                await SaveTokensAndNavigate(result.Data);
+            }
+            else
+            {
+                Snackbar.Add(result?.Message ?? "Doğrulama başarısız.", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Hata: {ex.Message}", Severity.Error);
+        }
+        finally { _loading = false; }
+    }
+
+    private async Task SaveTokensAndNavigate(LoginResponseDto data)
+    {
+        await Storage.SetItemAsStringAsync("accessToken", data.AccessToken!);
+        await Storage.SetItemAsStringAsync("refreshToken", data.RefreshToken!);
+        AuthState.NotifyAuthenticationStateChanged();
+        Snackbar.Add("Giriş başarılı!", Severity.Success);
+        await Task.Delay(300);
+        Nav.NavigateTo("/", false);
+    }
+}
+}

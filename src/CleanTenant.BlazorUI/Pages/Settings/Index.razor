@@ -1,0 +1,17 @@
+@page "/settings"
+@attribute [Authorize]
+
+<PageHeader Title="Settings" Breadcrumb="Yönetim / settings">
+    <MudButton Variant="Variant.Filled" Color="Color.Primary" Size="Size.Small"
+               StartIcon="@Icons.Material.Filled.Add">
+        Ekle
+    </MudButton>
+</PageHeader>
+
+<MudPaper Class="ct-card pa-6" Elevation="0">
+    <MudText Typo="Typo.body1" Align="Align.Center" Color="Color.Default">
+        <MudIcon Icon="@Icons.Material.Filled.Construction" Size="Size.Large" Class="mb-2" />
+        <br />
+        Bu sayfa geliştirme aşamasındadır.
+    </MudText>
+</MudPaper>

@@ -1,0 +1,45 @@
+<MudPaper Class="ct-stat-card" Elevation="0"
+          Style="@($"background: linear-gradient(135deg, {GetBgColor()} 0%, {GetBgColorLight()} 100%); color: white;")">
+    <div class="ct-stat-value">@Value</div>
+    <div class="ct-stat-label">@Title</div>
+    @if (!string.IsNullOrEmpty(Change))
+    {
+        <div class="ct-stat-change @(IsPositive ? "positive" : "negative")" style="color: rgba(255,255,255,0.8);">
+            <MudIcon Icon="@(IsPositive ? Icons.Material.Filled.TrendingUp : Icons.Material.Filled.TrendingDown)"
+                     Size="Size.Small" />
+            @Change
+        </div>
+    }
+    <MudIcon Icon="@Icon" Class="ct-stat-icon" Style="color: rgba(255,255,255,0.15);" />
+</MudPaper>
+
+@code {
+    [Parameter] public string Title { get; set; } = "";
+    [Parameter] public string Value { get; set; } = "0";
+    [Parameter] public string Icon { get; set; } = Icons.Material.Filled.Info;
+    [Parameter] public Color Color { get; set; } = Color.Primary;
+    [Parameter] public string? Change { get; set; }
+    [Parameter] public bool IsPositive { get; set; }
+
+    private string GetBgColor() => Color switch
+    {
+        Color.Primary   => "#2e7d32",
+        Color.Secondary => "#00695c",
+        Color.Info      => "#0277bd",
+        Color.Success   => "#388e3c",
+        Color.Warning   => "#ef6c00",
+        Color.Error     => "#c62828",
+        _ => "#2e7d32"
+    };
+
+    private string GetBgColorLight() => Color switch
+    {
+        Color.Primary   => "#43a047",
+        Color.Secondary => "#00897b",
+        Color.Info      => "#0288d1",
+        Color.Success   => "#4caf50",
+        Color.Warning   => "#f57c00",
+        Color.Error     => "#e53935",
+        _ => "#43a047"
+    };
+}

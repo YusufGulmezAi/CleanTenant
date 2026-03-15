@@ -1,17 +1,7 @@
-
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.12.0.0
 MinimumVisualStudioVersion = 10.0.40219.1
-
-# ============================================================================
-# CleanTenant Solution
-# Hierarchical Multi-Tenant Enterprise Framework
-# .NET 10 | PostgreSQL | Redis | MudBlazor
-# ============================================================================
-
-# --- Source Projects ---
-
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CleanTenant.Domain", "src\CleanTenant.Domain\CleanTenant.Domain.csproj", "{A1B2C3D4-0001-0000-0000-000000000001}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CleanTenant.Application", "src\CleanTenant.Application\CleanTenant.Application.csproj", "{A1B2C3D4-0002-0000-0000-000000000002}"
@@ -24,9 +14,6 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CleanTenant.API", "src\Clea
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CleanTenant.BlazorUI", "src\CleanTenant.BlazorUI\CleanTenant.BlazorUI.csproj", "{A1B2C3D4-0006-0000-0000-000000000006}"
 EndProject
-
-# --- Test Projects ---
-
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CleanTenant.Domain.Tests", "tests\CleanTenant.Domain.Tests\CleanTenant.Domain.Tests.csproj", "{A1B2C3D4-1001-0000-0000-000000000001}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CleanTenant.Application.Tests", "tests\CleanTenant.Application.Tests\CleanTenant.Application.Tests.csproj", "{A1B2C3D4-1002-0000-0000-000000000002}"
@@ -35,16 +22,12 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CleanTenant.Infrastructure.
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CleanTenant.API.IntegrationTests", "tests\CleanTenant.API.IntegrationTests\CleanTenant.API.IntegrationTests.csproj", "{A1B2C3D4-1004-0000-0000-000000000004}"
 EndProject
-
-# --- Solution Folders ---
-
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{F0000000-0000-0000-0000-000000000001}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tests", "tests", "{F0000000-0000-0000-0000-000000000002}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "docker", "docker", "{F0000000-0000-0000-0000-000000000003}"
 EndProject
-
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -91,6 +74,9 @@ Global
 		{A1B2C3D4-1004-0000-0000-000000000004}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{A1B2C3D4-1004-0000-0000-000000000004}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{A1B2C3D4-1004-0000-0000-000000000004}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
 	EndGlobalSection
 	GlobalSection(NestedProjects) = preSolution
 		{A1B2C3D4-0001-0000-0000-000000000001} = {F0000000-0000-0000-0000-000000000001}

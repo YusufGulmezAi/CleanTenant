@@ -137,15 +137,92 @@ public interface ISmsProvider
 
 /// <summary>
 /// E-posta gönderici servis sözleşmesi.
+/// CC, BCC, çoklu dosya eki, Hangfire background job desteği.
 /// </summary>
 public interface IEmailService
 {
-    /// <summary>E-posta gönderir.</summary>
-    Task<bool> SendAsync(string to, string subject, string htmlBody, CancellationToken ct = default);
+    /// <summary>Basit e-posta gönderir.</summary>
+    Task<Guid> SendAsync(string to, string subject, string htmlBody, CancellationToken ct = default);
+
+    /// <summary>Gelişmiş e-posta gönderir (CC, BCC, ekler).</summary>
+    Task<Guid> SendAsync(EmailMessage message, CancellationToken ct = default);
+
+    /// <summary>Hangfire ile arka planda gönderir — anında dönüş yapar.</summary>
+    Guid EnqueueAsync(EmailMessage message);
 
     /// <summary>2FA doğrulama kodu gönderir.</summary>
-    Task<bool> SendTwoFactorCodeAsync(string to, string code, CancellationToken ct = default);
+    Task<Guid> SendTwoFactorCodeAsync(string to, string code, CancellationToken ct = default);
 
     /// <summary>Şifre sıfırlama linki gönderir.</summary>
-    Task<bool> SendPasswordResetAsync(string to, string resetLink, CancellationToken ct = default);
+    Task<Guid> SendPasswordResetAsync(string to, string resetLink, CancellationToken ct = default);
+
+    /// <summary>E-posta doğrulama kodu gönderir.</summary>
+    Task<Guid> SendEmailVerificationCodeAsync(string to, string code, CancellationToken ct = default);
+
+    /// <summary>Hoş geldiniz e-postası gönderir.</summary>
+    Task<Guid> SendWelcomeAsync(string to, string fullName, string tempPassword, CancellationToken ct = default);
+}
+
+/// <summary>
+/// E-posta mesajı — CC, BCC, çoklu dosya eki desteği.
+/// 
+/// <code>
+/// var message = new EmailMessage
+/// {
+///     To = ["user@test.com", "user2@test.com"],
+///     Cc = ["manager@test.com"],
+///     Bcc = ["archive@test.com"],
+///     Subject = "Rapor",
+///     HtmlBody = "&lt;h1&gt;Merhaba&lt;/h1&gt;",
+///     Attachments =
+///     [
+///         new EmailAttachment("rapor.pdf", pdfBytes, "application/pdf"),
+///         new EmailAttachment("logo.png", logoBytes, "image/png")
+///     ]
+/// };
+/// var emailId = await emailService.SendAsync(message);
+/// </code>
+/// </summary>
+public class EmailMessage
+{
+    public List<string> To { get; set; } = [];
+    public List<string> Cc { get; set; } = [];
+    public List<string> Bcc { get; set; } = [];
+    public string Subject { get; set; } = default!;
+    public string HtmlBody { get; set; } = default!;
+    public string? TextBody { get; set; }
+    public List<EmailAttachment> Attachments { get; set; } = [];
+
+    /// <summary>Gönderen adı (boşsa config'den alınır).</summary>
+    public string? SenderName { get; set; }
+
+    /// <summary>Gönderen e-posta (boşsa config'den alınır).</summary>
+    public string? SenderEmail { get; set; }
+
+    /// <summary>Hangfire job olarak mı gönderilsin?</summary>
+    public bool SendInBackground { get; set; }
+
+    /// <summary>İlişkili tenant ID (tracking için).</summary>
+    public Guid? TenantId { get; set; }
+
+    /// <summary>İlişkili kullanıcı ID (tracking için).</summary>
+    public Guid? UserId { get; set; }
+
+    /// <summary>E-posta kategorisi (tracking için).</summary>
+    public string? Category { get; set; }
+}
+
+/// <summary>E-posta dosya eki.</summary>
+public class EmailAttachment
+{
+    public string FileName { get; set; }
+    public byte[] Content { get; set; }
+    public string ContentType { get; set; }
+
+    public EmailAttachment(string fileName, byte[] content, string contentType = "application/octet-stream")
+    {
+        FileName = fileName;
+        Content = content;
+        ContentType = contentType;
+    }
 }

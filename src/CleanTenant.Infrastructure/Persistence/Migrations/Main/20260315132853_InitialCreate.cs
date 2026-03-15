@@ -12,6 +12,34 @@ namespace CleanTenant.Infrastructure.Persistence.Migrations.Main
         protected override void Up(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.CreateTable(
+                name: "AccessPolicies",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "uuid", nullable: false),
+                    Name = table.Column<string>(type: "text", nullable: false),
+                    Description = table.Column<string>(type: "text", nullable: true),
+                    Level = table.Column<int>(type: "integer", nullable: false),
+                    TenantId = table.Column<Guid>(type: "uuid", nullable: true),
+                    CompanyId = table.Column<Guid>(type: "uuid", nullable: true),
+                    IsDefault = table.Column<bool>(type: "boolean", nullable: false),
+                    IsActive = table.Column<bool>(type: "boolean", nullable: false),
+                    DenyAllIps = table.Column<bool>(type: "boolean", nullable: false),
+                    AllowedIpRanges = table.Column<string>(type: "text", nullable: false),
+                    DenyAllTimes = table.Column<bool>(type: "boolean", nullable: false),
+                    AllowedDays = table.Column<string>(type: "text", nullable: false),
+                    AllowedTimeStart = table.Column<TimeOnly>(type: "time without time zone", nullable: true),
+                    AllowedTimeEnd = table.Column<TimeOnly>(type: "time without time zone", nullable: true),
+                    CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    CreatedBy = table.Column<string>(type: "text", nullable: true),
+                    UpdatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
+                    UpdatedBy = table.Column<string>(type: "text", nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_AccessPolicies", x => x.Id);
+                });
+
+            migrationBuilder.CreateTable(
                 name: "CompanyRoles",
                 columns: table => new
                 {
@@ -79,6 +107,30 @@ namespace CleanTenant.Infrastructure.Persistence.Migrations.Main
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_SystemRoles", x => x.Id);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "SystemSettings",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "uuid", nullable: false),
+                    Key = table.Column<string>(type: "text", nullable: false),
+                    Value = table.Column<string>(type: "text", nullable: false),
+                    Description = table.Column<string>(type: "text", nullable: true),
+                    ValueType = table.Column<int>(type: "integer", nullable: false),
+                    Category = table.Column<string>(type: "text", nullable: false),
+                    Level = table.Column<int>(type: "integer", nullable: false),
+                    TenantId = table.Column<Guid>(type: "uuid", nullable: true),
+                    CompanyId = table.Column<Guid>(type: "uuid", nullable: true),
+                    IsReadOnly = table.Column<bool>(type: "boolean", nullable: false),
+                    IsSecret = table.Column<bool>(type: "boolean", nullable: false),
+                    UpdatedBy = table.Column<string>(type: "text", nullable: true),
+                    UpdatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
+                    CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_SystemSettings", x => x.Id);
                 });
 
             migrationBuilder.CreateTable(
@@ -318,6 +370,33 @@ namespace CleanTenant.Infrastructure.Persistence.Migrations.Main
                 });
 
             migrationBuilder.CreateTable(
+                name: "UserPolicyAssignments",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "uuid", nullable: false),
+                    UserId = table.Column<Guid>(type: "uuid", nullable: false),
+                    AccessPolicyId = table.Column<Guid>(type: "uuid", nullable: false),
+                    AssignedBy = table.Column<string>(type: "text", nullable: false),
+                    AssignedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_UserPolicyAssignments", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_UserPolicyAssignments_AccessPolicies_AccessPolicyId",
+                        column: x => x.AccessPolicyId,
+                        principalTable: "AccessPolicies",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                    table.ForeignKey(
+                        name: "FK_UserPolicyAssignments_Users_UserId",
+                        column: x => x.UserId,
+                        principalTable: "Users",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
                 name: "UserSessions",
                 columns: table => new
                 {
@@ -501,6 +580,16 @@ namespace CleanTenant.Infrastructure.Persistence.Migrations.Main
                 unique: true);
 
             migrationBuilder.CreateIndex(
+                name: "IX_UserPolicyAssignments_AccessPolicyId",
+                table: "UserPolicyAssignments",
+                column: "AccessPolicyId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_UserPolicyAssignments_UserId",
+                table: "UserPolicyAssignments",
+                column: "UserId");
+
+            migrationBuilder.CreateIndex(
                 name: "IX_Users_Email",
                 table: "Users",
                 column: "Email",
@@ -555,6 +644,9 @@ namespace CleanTenant.Infrastructure.Persistence.Migrations.Main
                 name: "IpBlacklists");
 
             migrationBuilder.DropTable(
+                name: "SystemSettings");
+
+            migrationBuilder.DropTable(
                 name: "UserAccessPolicies");
 
             migrationBuilder.DropTable(
@@ -565,6 +657,9 @@ namespace CleanTenant.Infrastructure.Persistence.Migrations.Main
 
             migrationBuilder.DropTable(
                 name: "UserCompanyRoles");
+
+            migrationBuilder.DropTable(
+                name: "UserPolicyAssignments");
 
             migrationBuilder.DropTable(
                 name: "UserSessions");
@@ -580,6 +675,9 @@ namespace CleanTenant.Infrastructure.Persistence.Migrations.Main
 
             migrationBuilder.DropTable(
                 name: "CompanyRoles");
+
+            migrationBuilder.DropTable(
+                name: "AccessPolicies");
 
             migrationBuilder.DropTable(
                 name: "SystemRoles");

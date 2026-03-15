@@ -127,6 +127,61 @@ public class ChangePasswordDto
     public string ConfirmPassword { get; set; } = default!;
 }
 
+// ============================================================================
+// 2FA Yönetim DTO'ları
+// ============================================================================
+
+/// <summary>E-posta ile 2FA aktifleştirme isteği.</summary>
+public class Enable2FAEmailDto
+{
+    public string CurrentPassword { get; set; } = default!;
+}
+
+/// <summary>Authenticator 2FA kurulum yanıtı — QR kod bilgileri.</summary>
+public class SetupAuthenticatorResponseDto
+{
+    /// <summary>Base32 encoded secret key — elle girmek için.</summary>
+    public string SecretKey { get; set; } = default!;
+
+    /// <summary>otpauth:// URI — QR kod oluşturmak için.</summary>
+    public string QrCodeUri { get; set; } = default!;
+	/// <summary>Tarayıcıda açılabilir QR kod resmi URL'si.</summary>
+	public string QrCodeImageUrl { get; set; } = default!;
+}
+
+/// <summary>Authenticator 2FA doğrulama isteği (kurulum tamamlama).</summary>
+public class VerifyAuthenticatorDto
+{
+    /// <summary>Setup'tan alınan secret key.</summary>
+    public string SecretKey { get; set; } = default!;
+
+    /// <summary>Authenticator uygulamasından okunan 6 haneli kod.</summary>
+    public string Code { get; set; } = default!;
+}
+
+/// <summary>2FA devre dışı bırakma isteği.</summary>
+public class Disable2FADto
+{
+    public string CurrentPassword { get; set; } = default!;
+}
+
+/// <summary>E-posta doğrulama kodu onaylama isteği.</summary>
+public class ConfirmEmailDto
+{
+	public string Email { get; set; } = default!;
+	public string Code { get; set; } = default!;
+}
+
+/// <summary>2FA durum bilgisi.</summary>
+public class TwoFactorStatusDto
+{
+    public bool IsEnabled { get; set; }
+    public string Method { get; set; } = "None";
+    public bool HasAuthenticator { get; set; }
+    public bool EmailConfirmed { get; set; }
+    public bool PhoneConfirmed { get; set; }
+}
+
 /// <summary>
 /// Login sonrası kullanıcının mevcut bağlamları.
 /// Kullanıcı hangi tenant/şirketlerde yetkili olduğunu görür

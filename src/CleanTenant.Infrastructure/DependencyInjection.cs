@@ -3,6 +3,8 @@ using CleanTenant.Infrastructure.Caching;
 using CleanTenant.Infrastructure.Persistence;
 using CleanTenant.Infrastructure.Persistence.Interceptors;
 using CleanTenant.Infrastructure.Security;
+using Hangfire;
+using Hangfire.PostgreSql;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -102,6 +104,39 @@ public static class DependencyInjection
         // Mevcut kullanıcı bilgisi (HttpContext'ten)
         services.AddHttpContextAccessor();
         services.AddScoped<ICurrentUserService, CurrentUserService>();
+
+        // ================================================================
+        // E-POSTA SERVİSİ
+        // ================================================================
+        services.AddScoped<Email.SmtpEmailService>();  // Concrete (Hangfire job'ı için gerekli)
+        services.AddScoped<IEmailService, Email.SmtpEmailService>();
+        services.AddScoped<Email.EmailBackgroundJob>();
+
+        // ================================================================
+        // AYAR SERVİSİ (Hiyerarşik DB → appsettings.json fallback)
+        // ================================================================
+        services.AddScoped<ISettingsService, Settings.SettingsService>();
+
+        // ================================================================
+        // HANGFIRE — Arka Plan Görevleri (PostgreSQL storage)
+        // ================================================================
+        var hangfireConnectionString = configuration.GetConnectionString("MainDatabase");
+        if (!string.IsNullOrEmpty(hangfireConnectionString))
+        {
+            services.AddHangfire(config => config
+                .SetDataCompatibilityLevel(CompatibilityLevel.Version_180)
+                .UseSimpleAssemblyNameTypeSerializer()
+                .UseRecommendedSerializerSettings()
+                .UsePostgreSqlStorage(c =>
+                    c.UseNpgsqlConnection(hangfireConnectionString)));
+
+            services.AddHangfireServer(options =>
+            {
+                options.Queues = ["email", "default"];
+                options.WorkerCount = int.Parse(
+                    configuration["Hangfire:WorkerCount"] ?? "2");
+            });
+        }
 
         return services;
     }

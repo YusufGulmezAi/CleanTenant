@@ -483,6 +483,71 @@ namespace CleanTenant.Infrastructure.Persistence.Migrations.Main
                     b.ToTable("UserTenantRoles", (string)null);
                 });
 
+            modelBuilder.Entity("CleanTenant.Domain.Security.AccessPolicy", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("AllowedDays")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("AllowedIpRanges")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<TimeOnly?>("AllowedTimeEnd")
+                        .HasColumnType("time without time zone");
+
+                    b.Property<TimeOnly?>("AllowedTimeStart")
+                        .HasColumnType("time without time zone");
+
+                    b.Property<Guid?>("CompanyId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("CreatedBy")
+                        .HasColumnType("text");
+
+                    b.Property<bool>("DenyAllIps")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("DenyAllTimes")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("Description")
+                        .HasColumnType("text");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("IsDefault")
+                        .HasColumnType("boolean");
+
+                    b.Property<int>("Level")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<Guid?>("TenantId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("UpdatedBy")
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("AccessPolicies");
+                });
+
             modelBuilder.Entity("CleanTenant.Domain.Security.IpBlacklist", b =>
                 {
                     b.Property<Guid>("Id")
@@ -635,6 +700,34 @@ namespace CleanTenant.Infrastructure.Persistence.Migrations.Main
                     b.ToTable("UserBlocks", (string)null);
                 });
 
+            modelBuilder.Entity("CleanTenant.Domain.Security.UserPolicyAssignment", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("AccessPolicyId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("AssignedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("AssignedBy")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AccessPolicyId");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("UserPolicyAssignments");
+                });
+
             modelBuilder.Entity("CleanTenant.Domain.Security.UserSession", b =>
                 {
                     b.Property<Guid>("Id")
@@ -694,6 +787,59 @@ namespace CleanTenant.Infrastructure.Persistence.Migrations.Main
                         .HasDatabaseName("IX_UserSessions_UserId_IsRevoked");
 
                     b.ToTable("UserSessions", (string)null);
+                });
+
+            modelBuilder.Entity("CleanTenant.Domain.Settings.SystemSetting", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Category")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<Guid?>("CompanyId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Description")
+                        .HasColumnType("text");
+
+                    b.Property<bool>("IsReadOnly")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("IsSecret")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("Key")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<int>("Level")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid?>("TenantId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("UpdatedBy")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Value")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<int>("ValueType")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("SystemSettings");
                 });
 
             modelBuilder.Entity("CleanTenant.Domain.Tenancy.Company", b =>
@@ -950,6 +1096,25 @@ namespace CleanTenant.Infrastructure.Persistence.Migrations.Main
                     b.Navigation("User");
                 });
 
+            modelBuilder.Entity("CleanTenant.Domain.Security.UserPolicyAssignment", b =>
+                {
+                    b.HasOne("CleanTenant.Domain.Security.AccessPolicy", "AccessPolicy")
+                        .WithMany("Assignments")
+                        .HasForeignKey("AccessPolicyId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("CleanTenant.Domain.Identity.ApplicationUser", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("AccessPolicy");
+
+                    b.Navigation("User");
+                });
+
             modelBuilder.Entity("CleanTenant.Domain.Security.UserSession", b =>
                 {
                     b.HasOne("CleanTenant.Domain.Identity.ApplicationUser", "User")
@@ -981,6 +1146,11 @@ namespace CleanTenant.Infrastructure.Persistence.Migrations.Main
                     b.Navigation("SystemRoles");
 
                     b.Navigation("TenantRoles");
+                });
+
+            modelBuilder.Entity("CleanTenant.Domain.Security.AccessPolicy", b =>
+                {
+                    b.Navigation("Assignments");
                 });
 
             modelBuilder.Entity("CleanTenant.Domain.Tenancy.Tenant", b =>

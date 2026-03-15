@@ -308,13 +308,26 @@ public class Verify2FAHandler : IRequestHandler<Verify2FACommand, Result<LoginRe
 
     private static bool Verify2FACode(Domain.Identity.ApplicationUser user, string code, bool isFallback)
     {
-        // TODO: Gerçek implementasyon:
-        // - Authenticator: TOTP doğrulama (user.AuthenticatorKey ile)
-        // - SMS: Redis'teki kodu karşılaştır
-        // - Email Fallback: Redis'teki kodu karşılaştır
+        // E-posta fallback — Redis'teki kodu karşılaştır (TODO: cache inject edilecek)
+        // Şimdilik fallback'te "123456" kabul ediliyor
+        if (isFallback)
+            return code == "123456";
 
-        // Geliştirme amaçlı: "123456" her zaman kabul edilir
-        return code == "123456";
+        return user.PrimaryTwoFactorMethod switch
+        {
+            // Authenticator: Gerçek TOTP doğrulama
+            Domain.Enums.TwoFactorMethod.Authenticator when !string.IsNullOrEmpty(user.AuthenticatorKey)
+                => Shared.Helpers.SecurityHelper.VerifyTotpCode(user.AuthenticatorKey, code),
+
+            // E-posta: Redis'teki kodu karşılaştır (TODO: cache)
+            // Geliştirme amaçlı "123456" kabul
+            Domain.Enums.TwoFactorMethod.Email => code == "123456",
+
+            // SMS: Redis'teki kodu karşılaştır (TODO: cache)
+            Domain.Enums.TwoFactorMethod.Sms => code == "123456",
+
+            _ => false
+        };
     }
 }
 

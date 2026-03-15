@@ -1,4 +1,5 @@
 using CleanTenant.Domain.Identity;
+using CleanTenant.Domain.Security;
 using CleanTenant.Infrastructure.Persistence;
 using CleanTenant.Shared.Constants;
 using Microsoft.EntityFrameworkCore;
@@ -10,16 +11,12 @@ namespace CleanTenant.Infrastructure.Persistence.Seeds;
 /// <summary>
 /// Veritabanı ilk oluşturulduğunda varsayılan verileri ekler.
 /// 
-/// <para><b>NE OLUŞTURUR?</b></para>
-/// <list type="bullet">
-///   <item>SuperAdmin sistem rolü (yerleşik, silinemez)</item>
-///   <item>SystemUser sistem rolü (yerleşik, silinemez)</item>
-///   <item>Varsayılan SuperAdmin kullanıcısı (ilk erişim için)</item>
+/// <para><b>OLUŞTURMA SIRASI (bağımlılık sırasına göre):</b></para>
+/// <list type="number">
+///   <item>Sistem rolleri (SuperAdmin, SystemUser)</item>
+///   <item>System Default Access Policy (silinemez)</item>
+///   <item>SuperAdmin kullanıcısı + Tam Erişim politikası</item>
 /// </list>
-/// 
-/// <para><b>İDEMPOTENT:</b></para>
-/// Birden fazla çalıştırılabilir — var olan verileri tekrar eklemez.
-/// Her çalıştırmada "bu veri var mı?" kontrolü yapar.
 /// </summary>
 public static class DefaultDataSeeder
 {
@@ -31,20 +28,21 @@ public static class DefaultDataSeeder
 
         try
         {
-			// Migration'ları uygula (yoksa oluştur)
-			await context.Database.EnsureCreatedAsync();
-			logger.LogInformation("Ana veritabanı migration'ları uygulandı.");
+            await context.Database.MigrateAsync();
+            logger.LogInformation("Ana veritabanı migration'ları uygulandı.");
 
-            // Audit DB migration
             var auditContext = scope.ServiceProvider.GetRequiredService<AuditDbContext>();
-			await context.Database.EnsureCreatedAsync();
-			logger.LogInformation("Audit veritabanı migration'ları uygulandı.");
+            await auditContext.Database.MigrateAsync();
+            logger.LogInformation("Audit veritabanı migration'ları uygulandı.");
 
-            // Seed: Sistem rolleri
+            // Sıra kritik — bağımlılık sırasına göre
             await SeedSystemRolesAsync(context, logger);
-
-            // Seed: SuperAdmin kullanıcısı
+            await SeedSystemDefaultPolicyAsync(context, logger);
             await SeedSuperAdminAsync(context, logger);
+
+            // Seed: Varsayılan sistem ayarları
+            await Application.Features.Settings.DefaultSettingsSeeder.SeedAsync(context);
+            logger.LogInformation("Varsayılan sistem ayarları oluşturuldu.");
         }
         catch (Exception ex)
         {
@@ -53,76 +51,97 @@ public static class DefaultDataSeeder
         }
     }
 
-    private static async Task SeedSystemRolesAsync(
-        ApplicationDbContext context, ILogger logger)
+    /// <summary>Sistem rollerini oluşturur.</summary>
+    private static async Task SeedSystemRolesAsync(ApplicationDbContext context, ILogger logger)
     {
-        // SuperAdmin rolü
         if (!await context.SystemRoles.AnyAsync(r => r.Name == SystemRoles.SuperAdmin))
         {
-            var superAdminRole = SystemRole.Create(
+            context.SystemRoles.Add(SystemRole.Create(
                 SystemRoles.SuperAdmin,
                 "Tüm sisteme sınırsız erişim sağlayan en üst düzey rol.",
                 $"[\"{Permissions.FullAccess}\"]",
-                isSystem: true);
-
-            context.SystemRoles.Add(superAdminRole);
+                isSystem: true));
             logger.LogInformation("SuperAdmin rolü oluşturuldu.");
         }
 
-        // SystemUser rolü
         if (!await context.SystemRoles.AnyAsync(r => r.Name == SystemRoles.SystemUser))
         {
-            var systemUserRole = SystemRole.Create(
+            context.SystemRoles.Add(SystemRole.Create(
                 SystemRoles.SystemUser,
                 "Tüm tenant'larda rol bazlı yetki sağlayan sistem kullanıcısı rolü.",
-                "[]",  // İzinler admin tarafından atanacak
-                isSystem: true);
-
-            context.SystemRoles.Add(systemUserRole);
+                "[]",
+                isSystem: true));
             logger.LogInformation("SystemUser rolü oluşturuldu.");
         }
 
         await context.SaveChangesAsync();
     }
 
-    private static async Task SeedSuperAdminAsync(
-        ApplicationDbContext context, ILogger logger)
+    /// <summary>
+    /// System seviyesi Default Access Policy oluşturur.
+    /// Default = "Hiçbir IP'den, hiçbir zaman giremez" (silinemez).
+    /// </summary>
+    private static async Task SeedSystemDefaultPolicyAsync(ApplicationDbContext context, ILogger logger)
+    {
+        if (await context.AccessPolicies.AnyAsync(p => p.Level == PolicyLevel.System && p.IsDefault))
+            return;
+
+        var defaultPolicy = AccessPolicy.CreateDefault(PolicyLevel.System, createdBy: "SYSTEM");
+        context.AccessPolicies.Add(defaultPolicy);
+        await context.SaveChangesAsync();
+
+        logger.LogInformation("System Default Access Policy oluşturuldu (tüm erişim reddedilir).");
+    }
+
+    /// <summary>
+    /// SuperAdmin kullanıcısı + Tam Erişim politikası oluşturur.
+    /// </summary>
+    private static async Task SeedSuperAdminAsync(ApplicationDbContext context, ILogger logger)
     {
         const string superAdminEmail = "admin@cleantenant.com";
 
         if (await context.Users.AnyAsync(u => u.Email == superAdminEmail))
             return;
 
-        // SuperAdmin kullanıcısı oluştur
+        // [1] SuperAdmin kullanıcısı oluştur
         var adminUser = ApplicationUser.Create(superAdminEmail, "System Administrator");
-        adminUser.ConfirmEmail(); // E-posta otomatik doğrulanmış
-
-        // NOT: Şifre hash'i Infrastructure katmanında Identity servisi ile atanacak.
-        // Seed'de geçici bir hash atıyoruz — ilk loginde değiştirilmesi zorunlu olacak.
+        adminUser.ConfirmEmail();
         adminUser.PasswordHash = "CHANGE_ON_FIRST_LOGIN";
+        adminUser.EnableTwoFactor(Domain.Enums.TwoFactorMethod.Email);
 
         context.Users.Add(adminUser);
         await context.SaveChangesAsync();
 
-        // SuperAdmin rolünü ata
-        var superAdminRole = await context.SystemRoles
-            .FirstAsync(r => r.Name == SystemRoles.SuperAdmin);
-
-        var roleAssignment = new UserSystemRole
+        // [2] SuperAdmin rolünü ata
+        var superAdminRole = await context.SystemRoles.FirstAsync(r => r.Name == SystemRoles.SuperAdmin);
+        context.UserSystemRoles.Add(new UserSystemRole
         {
             Id = Guid.CreateVersion7(),
             UserId = adminUser.Id,
             SystemRoleId = superAdminRole.Id,
             AssignedBy = "SYSTEM",
             AssignedAt = DateTime.UtcNow
-        };
+        });
 
-        context.UserSystemRoles.Add(roleAssignment);
+        // [3] Tam Erişim politikası oluştur (tüm IP, tüm gün, tüm saat)
+        var fullAccessPolicy = AccessPolicy.CreateFullAccess(PolicyLevel.System, createdBy: "SYSTEM");
+        context.AccessPolicies.Add(fullAccessPolicy);
+        await context.SaveChangesAsync();
+
+        // [4] SuperAdmin'e tam erişim politikası ata
+        context.UserPolicyAssignments.Add(new UserPolicyAssignment
+        {
+            Id = Guid.CreateVersion7(),
+            UserId = adminUser.Id,
+            AccessPolicyId = fullAccessPolicy.Id,
+            AssignedBy = "SYSTEM",
+            AssignedAt = DateTime.UtcNow
+        });
+
         await context.SaveChangesAsync();
 
         logger.LogInformation(
-            "SuperAdmin kullanıcısı oluşturuldu: {Email}. " +
-            "ÖNEMLİ: İlk loginde şifre değiştirilmelidir!",
+            "SuperAdmin oluşturuldu: {Email} + Tam Erişim politikası atandı. İlk loginde şifre değiştirilmelidir!",
             superAdminEmail);
     }
 }

@@ -1,8 +1,10 @@
 using CleanTenant.API.Extensions;
+using CleanTenant.Application.Common.Interfaces;
 using CleanTenant.Application.Features.Auth.Commands;
 using CleanTenant.Application.Features.Auth.Queries;
 using CleanTenant.Shared.DTOs.Auth;
 using MediatR;
+using Microsoft.EntityFrameworkCore;
 
 namespace CleanTenant.API.Endpoints;
 
@@ -66,7 +68,41 @@ public static class AuthEndpoints
         group.MapGet("/context", GetUserContext)
             .WithSummary("Kullanıcının erişebildiği tenant/şirket bağlamlarını getir")
             .RequireAuthorization();
-    }
+
+        // ── E-posta Doğrulama ────────────────────────────────────────────
+        group.MapPost("/send-email-verification", SendEmailVerification)
+            .WithSummary("E-posta doğrulama kodu gönder")
+            .RequireAuthorization();
+
+        group.MapPost("/confirm-email", ConfirmEmail)
+            .WithSummary("E-posta doğrulama kodunu onayla")
+            .RequireAuthorization();
+
+        // ── 2FA Yönetimi ───────────────────────────────────────────────────
+        group.MapGet("/2fa/status", Get2FAStatus)
+            .WithSummary("2FA durumunu getir")
+            .RequireAuthorization();
+
+        group.MapPost("/2fa/enable-email", Enable2FAEmail)
+            .WithSummary("E-posta ile 2FA aktifleştir")
+            .RequireAuthorization();
+
+        group.MapPost("/2fa/setup-authenticator", SetupAuthenticator)
+            .WithSummary("Authenticator kurulumu — QR kod + secret döner")
+            .RequireAuthorization();
+
+        group.MapPost("/2fa/verify-authenticator", VerifyAuthenticator)
+            .WithSummary("Authenticator kodunu doğrula ve aktifleştir")
+            .RequireAuthorization();
+
+        group.MapPost("/2fa/disable", Disable2FA)
+            .WithSummary("2FA devre dışı bırak (şifre ile onay)")
+            .RequireAuthorization();
+
+		group.MapGet("/emails", GetEmailLogs)
+			.WithSummary("E-posta gönderim loglarını getir")
+			.RequireAuthorization();
+	}
 
     /// <summary>POST /api/auth/login</summary>
     private static async Task<IResult> Login(
@@ -139,4 +175,143 @@ public static class AuthEndpoints
         var result = await sender.Send(new GetUserContextQuery(), ct);
         return result.ToApiResponse();
     }
+
+    // ── 2FA Yönetim Endpoint'leri ──────────────────────────────────────
+
+    /// <summary>GET /api/auth/2fa/status</summary>
+    private static async Task<IResult> Get2FAStatus(ISender sender, CancellationToken ct)
+    {
+        var result = await sender.Send(new Get2FAStatusQuery(), ct);
+        return result.ToApiResponse();
+    }
+
+    /// <summary>POST /api/auth/2fa/enable-email</summary>
+    private static async Task<IResult> Enable2FAEmail(
+        Enable2FAEmailDto dto, ISender sender, CancellationToken ct)
+    {
+        var result = await sender.Send(new Enable2FAEmailCommand(dto), ct);
+        return result.ToApiResponse();
+    }
+
+    /// <summary>POST /api/auth/2fa/setup-authenticator</summary>
+    private static async Task<IResult> SetupAuthenticator(ISender sender, CancellationToken ct)
+    {
+        var result = await sender.Send(new SetupAuthenticatorCommand(), ct);
+        return result.ToApiResponse();
+    }
+
+    /// <summary>POST /api/auth/2fa/verify-authenticator</summary>
+    private static async Task<IResult> VerifyAuthenticator(
+        VerifyAuthenticatorDto dto, ISender sender, CancellationToken ct)
+    {
+        var result = await sender.Send(new VerifyAuthenticatorCommand(dto), ct);
+        return result.ToApiResponse();
+    }
+
+    /// <summary>POST /api/auth/2fa/disable</summary>
+    private static async Task<IResult> Disable2FA(
+        Disable2FADto dto, ISender sender, CancellationToken ct)
+    {
+        var result = await sender.Send(new Disable2FACommand(dto), ct);
+        return result.ToApiResponse();
+    }
+
+    // ── E-posta Doğrulama Endpoint'leri ────────────────────────────────
+
+    /// <summary>POST /api/auth/send-email-verification</summary>
+    private static async Task<IResult> SendEmailVerification(
+        ICurrentUserService currentUser, IApplicationDbContext db,
+        ICacheService cache, IEmailService emailService, CancellationToken ct)
+    {
+        if (currentUser.UserId is null)
+            return Results.Json(new { isSuccess = false, message = "Yetkisiz." }, statusCode: 401);
+
+        var user = await db.Users.FirstOrDefaultAsync(u => u.Id == currentUser.UserId, ct);
+        if (user is null)
+            return Results.Json(new { isSuccess = false, message = "Kullanıcı bulunamadı." }, statusCode: 404);
+
+        if (user.EmailConfirmed)
+            return Results.Json(new { isSuccess = false, message = "E-posta zaten doğrulanmış." }, statusCode: 400);
+
+        // 6 haneli doğrulama kodu üret ve Redis'e kaydet (5dk TTL)
+        var code = CleanTenant.Shared.Helpers.SecurityHelper.GenerateVerificationCode(6);
+        await cache.SetAsync($"ct:email-verify:{user.Id}", code, TimeSpan.FromMinutes(5), ct);
+
+        // Gerçek e-posta gönder (EmailLog ID döner)
+        try
+        {
+            var emailId = await emailService.SendEmailVerificationCodeAsync(user.Email, code, ct);
+            return Results.Ok(new
+            {
+                isSuccess = true,
+                message = "Doğrulama kodu e-posta adresinize gönderildi.",
+                emailId,
+                devCode = code  // TODO: Production'da kaldır
+            });
+        }
+        catch
+        {
+            return Results.Ok(new
+            {
+                isSuccess = true,
+                message = $"E-posta gönderilemedi (SMTP yapılandırılmamış olabilir). DEV KODU: {code}",
+                devCode = code
+            });
+        }
+    }
+
+    /// <summary>POST /api/auth/confirm-email</summary>
+    private static async Task<IResult> ConfirmEmail(
+        ConfirmEmailDto dto, ICurrentUserService currentUser,
+        IApplicationDbContext db, ICacheService cache, CancellationToken ct)
+    {
+        if (currentUser.UserId is null)
+            return Results.Json(new { isSuccess = false, message = "Yetkisiz." }, statusCode: 401);
+
+        var user = await db.Users.FirstOrDefaultAsync(u => u.Id == currentUser.UserId, ct);
+        if (user is null)
+            return Results.Json(new { isSuccess = false, message = "Kullanıcı bulunamadı." }, statusCode: 404);
+
+        // Redis'ten kodu kontrol et
+        var cachedCode = await cache.GetAsync<string>($"ct:email-verify:{user.Id}", ct);
+        if (cachedCode is null || cachedCode != dto.Code)
+            return Results.Json(new { isSuccess = false, message = "Doğrulama kodu hatalı veya süresi dolmuş." }, statusCode: 400);
+
+        // E-postayı doğrulanmış olarak işaretle
+        user.ConfirmEmail();
+        await db.SaveChangesAsync(ct);
+
+        // Kodu Redis'ten sil
+        await cache.RemoveAsync($"ct:email-verify:{user.Id}", ct);
+
+        return Results.Ok(new { isSuccess = true, message = "E-posta başarıyla doğrulandı." });
+    }
+	private static async Task<IResult> GetEmailLogs(
+		IAuditDbContext auditDb, int page = 1, int size = 20, CancellationToken ct = default)
+	{
+		var logs = await auditDb.EmailLogs
+			.OrderByDescending(e => e.CreatedAt)
+			.Skip((page - 1) * size)
+			.Take(size)
+			.Select(e => new
+			{
+				e.Id,
+				e.To,
+				e.Cc,
+				e.Bcc,
+				e.Subject,
+				Status = e.Status.ToString(),
+				e.Category,
+				e.SentAt,
+				e.ErrorMessage,
+				e.AttemptCount,
+				e.AttachmentNames,
+				e.CreatedAt
+			})
+			.ToListAsync(ct);
+
+		var total = await auditDb.EmailLogs.CountAsync(ct);
+
+		return Results.Ok(new { isSuccess = true, total, page, size, data = logs });
+	}
 }

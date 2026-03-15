@@ -23,6 +23,7 @@ public class AuditDbContext : DbContext, IAuditDbContext
 
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
     public DbSet<SecurityLog> SecurityLogs => Set<SecurityLog>();
+    public DbSet<CleanTenant.Domain.Email.EmailLog> EmailLogs => Set<CleanTenant.Domain.Email.EmailLog>();
 
     protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)
     {

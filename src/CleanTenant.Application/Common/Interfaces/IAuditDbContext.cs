@@ -15,6 +15,7 @@ public interface IAuditDbContext
 {
     DbSet<AuditLog> AuditLogs { get; }
     DbSet<SecurityLog> SecurityLogs { get; }
+    DbSet<CleanTenant.Domain.Email.EmailLog> EmailLogs { get; }
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }
 

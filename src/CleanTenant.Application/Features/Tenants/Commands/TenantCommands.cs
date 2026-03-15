@@ -29,7 +29,7 @@ public class CreateTenantValidator : AbstractValidator<CreateTenantCommand>
     {
         RuleFor(x => x.Dto.Name)
             .NotEmpty().WithMessage("Tenant adı zorunludur.")
-            .MaximumLength(200).WithMessage("Tenant adı en fazla 200 karakter olabilir.");
+            .MaximumLength(300).WithMessage("Tenant adı en fazla 300 karakter olabilir.");
 
         RuleFor(x => x.Dto.Identifier)
             .NotEmpty().WithMessage("Tanımlayıcı (identifier) zorunludur.")

@@ -33,6 +33,12 @@ public static class EndpointExtensions
         // Oturum izleme: /api/sessions
         app.MapSessionEndpoints();
 
+        // Erişim politikaları: /api/access-policies
+        app.MapAccessPolicyEndpoints();
+
+        // Sistem ayarları: /api/settings
+        app.MapSettingsEndpoints();
+
         // TODO: Gelecek fazlar:
         // app.MapAuditEndpoints();     → /api/audit (audit log sorgulama)
         // app.MapBackupEndpoints();    → /api/backups (şirket bazlı yedekleme)

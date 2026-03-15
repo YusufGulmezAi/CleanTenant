@@ -49,6 +49,17 @@ public interface IApplicationDbContext
     DbSet<IpBlacklist> IpBlacklists { get; }
 
     // ========================================================================
+    // ACCESS POLICY (Hiyerarşik IP + Zaman Kısıtlama)
+    // ========================================================================
+    DbSet<AccessPolicy> AccessPolicies { get; }
+    DbSet<UserPolicyAssignment> UserPolicyAssignments { get; }
+
+    // ========================================================================
+    // SETTINGS (Hiyerarşik Ayar Yönetimi)
+    // ========================================================================
+    DbSet<CleanTenant.Domain.Settings.SystemSetting> SystemSettings { get; }
+
+    // ========================================================================
     // SAVE CHANGES
     // ========================================================================
 

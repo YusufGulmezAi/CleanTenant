@@ -60,6 +60,13 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext
     public DbSet<UserBlock> UserBlocks => Set<UserBlock>();
     public DbSet<IpBlacklist> IpBlacklists => Set<IpBlacklist>();
 
+    // Access Policy (Hiyerarşik)
+    public DbSet<AccessPolicy> AccessPolicies => Set<AccessPolicy>();
+    public DbSet<UserPolicyAssignment> UserPolicyAssignments => Set<UserPolicyAssignment>();
+
+    // Settings
+    public DbSet<Domain.Settings.SystemSetting> SystemSettings => Set<Domain.Settings.SystemSetting>();
+
     // ========================================================================
     // MODEL CONFIGURATION
     // ========================================================================

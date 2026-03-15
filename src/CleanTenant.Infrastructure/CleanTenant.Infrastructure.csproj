@@ -25,80 +25,86 @@
 -->
 <Project Sdk="Microsoft.NET.Sdk">
 
-  <PropertyGroup>
-    <RootNamespace>CleanTenant.Infrastructure</RootNamespace>
-    <AssemblyName>CleanTenant.Infrastructure</AssemblyName>
-    <IsPackable>true</IsPackable>
-    <PackageId>CleanTenant.Infrastructure</PackageId>
-    <Description>CleanTenant Infrastructure Layer - EF Core, Redis, Security, Background Jobs</Description>
-  </PropertyGroup>
+	<PropertyGroup>
+		<RootNamespace>CleanTenant.Infrastructure</RootNamespace>
+		<AssemblyName>CleanTenant.Infrastructure</AssemblyName>
+		<IsPackable>true</IsPackable>
+		<PackageId>CleanTenant.Infrastructure</PackageId>
+		<Description>CleanTenant Infrastructure Layer - EF Core, Redis, Security, Background Jobs</Description>
+	</PropertyGroup>
 
-  <!-- Katman Referansları: Infrastructure → Application (transitively Domain + Shared) -->
-  <ItemGroup>
-    <ProjectReference Include="..\CleanTenant.Application\CleanTenant.Application.csproj" />
-  </ItemGroup>
+	<!-- Katman Referansları: Infrastructure → Application (transitively Domain + Shared) -->
+	<ItemGroup>
+		<ProjectReference Include="..\CleanTenant.Application\CleanTenant.Application.csproj" />
+	</ItemGroup>
 
-  <ItemGroup>
-    <!-- ================================================================
+	<ItemGroup>
+		<!-- ================================================================
          VERİTABANI — Entity Framework Core + PostgreSQL
          ================================================================ -->
-    <!-- EF Core ana paket: DbContext, migrations, LINQ sorguları -->
-    <PackageReference Include="Microsoft.EntityFrameworkCore" Version="$(EfCoreVersion)" />
-    
-    <!-- Npgsql: PostgreSQL provider — EF Core'un PostgreSQL ile konuşmasını sağlar -->
-    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="10.0.1" />
-    
-    <!-- EF Core Tools: Migration oluşturma ve uygulama (dotnet ef) -->
-    <PackageReference Include="Microsoft.EntityFrameworkCore.Tools" Version="$(EfCoreVersion)">
-      <PrivateAssets>all</PrivateAssets>
-      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
-    </PackageReference>
+		<!-- EF Core ana paket: DbContext, migrations, LINQ sorguları -->
+		<PackageReference Include="Microsoft.EntityFrameworkCore" Version="$(EfCoreVersion)" />
 
-    <!-- ================================================================
+		<!-- Npgsql: PostgreSQL provider — EF Core'un PostgreSQL ile konuşmasını sağlar -->
+		<PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="$(EfCoreVersion)" />
+		
+		<!-- EF Core Tools: Migration oluşturma ve uygulama (dotnet ef) -->
+		<PackageReference Include="Microsoft.EntityFrameworkCore.Tools" Version="$(EfCoreVersion)">
+			<PrivateAssets>all</PrivateAssets>
+			<IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+		</PackageReference>
+
+		<!-- ================================================================
          KİMLİK YÖNETİMİ — Kendi Identity Sınıflarımız + JWT
          ================================================================ -->
-    <!-- Microsoft.Identity KULLANMIYORUZ — kendi sınıflarımız var:
+		<!-- Microsoft.Identity KULLANMIYORUZ — kendi sınıflarımız var:
          - ApplicationUser (Domain katmanında)
          - SecurityHelper (Shared — PBKDF2 şifre hash'leme)
          - TokenService (Infrastructure — JWT üretim/doğrulama)
          - SessionManager (Infrastructure — oturum yönetimi)
     -->
-    
-    <!-- JWT Bearer: Token tabanlı kimlik doğrulama middleware'i -->
-    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="$(IdentityVersion)" />
 
-    <!-- ================================================================
+		<!-- JWT Bearer: Token tabanlı kimlik doğrulama middleware'i -->
+		<PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="$(IdentityVersion)" />
+
+		<!-- ================================================================
+         E-POSTA — MailKit (SMTP)
+         ================================================================ -->
+		<!-- MailKit: Modern, RFC uyumlu SMTP istemcisi (SmtpClient yerine) -->
+		<PackageReference Include="MailKit" Version="4.*" />
+
+		<!-- ================================================================
          CACHE — Redis (Dağıtık)
          ================================================================ -->
-    <!-- StackExchange.Redis: Redis istemcisi — oturum, cache, pub/sub -->
-    <PackageReference Include="StackExchange.Redis" Version="$(StackExchangeRedisVersion)" />
+		<!-- StackExchange.Redis: Redis istemcisi — oturum, cache, pub/sub -->
+		<PackageReference Include="StackExchange.Redis" Version="$(StackExchangeRedisVersion)" />
 
-    <!-- ================================================================
+		<!-- ================================================================
          BACKGROUND JOBS — Hangfire
          ================================================================ -->
-    <!-- Hangfire Core: Job tanımlama, zamanlama, retry mekanizması -->
-    <PackageReference Include="Hangfire.Core" Version="$(HangfireVersion)" />
-    
-    <!-- Hangfire PostgreSQL: Job verilerini PostgreSQL'de saklar -->
-    <PackageReference Include="Hangfire.PostgreSql" Version="$(HangfireVersion)" />
+		<!-- Hangfire Core: Job tanımlama, zamanlama, retry mekanizması -->
+		<PackageReference Include="Hangfire.Core" Version="$(HangfireVersion)" />
 
-    <!-- 
+		<!-- Hangfire PostgreSQL: Job verilerini PostgreSQL'de saklar -->
+		<PackageReference Include="Hangfire.PostgreSql" Version="$(HangfireVersion)" />
+		<PackageReference Include="Hangfire.AspNetCore" Version="$(HangfireVersion)" />
+		<!-- 
       Newtonsoft.Json: Hangfire.PostgreSql'in transitif bağımlılığı eski sürüm çekiyor.
       Güvenlik açığını (NU1903) kapatmak için güncel sürümü doğrudan referans ediyoruz.
     -->
-    <PackageReference Include="Newtonsoft.Json" Version="13.*" />
+		<PackageReference Include="Newtonsoft.Json" Version="13.*" />
 
-    <!-- ================================================================
+		<!-- ================================================================
          LOGLAMA — Serilog
          ================================================================ -->
-    <!-- Serilog: Yapısal loglama framework'ü -->
-    <PackageReference Include="Serilog.AspNetCore" Version="$(SerilogAspNetCoreVersion)" />
-    
-    <!-- Serilog PostgreSQL Sink: Logları audit veritabanına yazar -->
-    <PackageReference Include="Serilog.Sinks.PostgreSQL" Version="$(SerilogSinksPostgreSqlVersion)" />
-    
-    <!-- Serilog Seq Sink: Seq log sunucusuna gönderir (geliştirme ortamı) -->
-    <PackageReference Include="Serilog.Sinks.Seq" Version="$(SerilogSinksSeqVersion)" />
-  </ItemGroup>
+		<!-- Serilog: Yapısal loglama framework'ü -->
+		<PackageReference Include="Serilog.AspNetCore" Version="$(SerilogAspNetCoreVersion)" />
+
+		<!-- Serilog PostgreSQL Sink: Logları audit veritabanına yazar -->
+		<PackageReference Include="Serilog.Sinks.PostgreSQL" Version="$(SerilogSinksPostgreSqlVersion)" />
+
+		<!-- Serilog Seq Sink: Seq log sunucusuna gönderir (geliştirme ortamı) -->
+		<PackageReference Include="Serilog.Sinks.Seq" Version="$(SerilogSinksSeqVersion)" />
+	</ItemGroup>
 
 </Project>

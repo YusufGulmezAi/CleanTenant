@@ -37,6 +37,34 @@ namespace CleanTenant.Infrastructure.Persistence.Migrations.Audit
                 });
 
             migrationBuilder.CreateTable(
+                name: "EmailLogs",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "uuid", nullable: false),
+                    To = table.Column<string>(type: "text", nullable: false),
+                    Cc = table.Column<string>(type: "text", nullable: true),
+                    Bcc = table.Column<string>(type: "text", nullable: true),
+                    Subject = table.Column<string>(type: "text", nullable: false),
+                    HtmlBody = table.Column<string>(type: "text", nullable: true),
+                    AttachmentNames = table.Column<string>(type: "text", nullable: true),
+                    AttachmentTotalSize = table.Column<long>(type: "bigint", nullable: false),
+                    Status = table.Column<int>(type: "integer", nullable: false),
+                    SentAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
+                    ErrorMessage = table.Column<string>(type: "text", nullable: true),
+                    AttemptCount = table.Column<int>(type: "integer", nullable: false),
+                    LastAttemptAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
+                    TenantId = table.Column<Guid>(type: "uuid", nullable: true),
+                    UserId = table.Column<Guid>(type: "uuid", nullable: true),
+                    Category = table.Column<string>(type: "text", nullable: true),
+                    HangfireJobId = table.Column<string>(type: "text", nullable: true),
+                    CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_EmailLogs", x => x.Id);
+                });
+
+            migrationBuilder.CreateTable(
                 name: "SecurityLogs",
                 columns: table => new
                 {
@@ -107,6 +135,9 @@ namespace CleanTenant.Infrastructure.Persistence.Migrations.Audit
         {
             migrationBuilder.DropTable(
                 name: "AuditLogs");
+
+            migrationBuilder.DropTable(
+                name: "EmailLogs");
 
             migrationBuilder.DropTable(
                 name: "SecurityLogs");

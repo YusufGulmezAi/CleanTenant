@@ -8,6 +8,7 @@ using CleanTenant.API.Extensions;
 using CleanTenant.Application;
 using CleanTenant.Infrastructure;
 using CleanTenant.Infrastructure.Persistence.Seeds;
+using Hangfire;
 using Scalar.AspNetCore;
 
 // Npgsql: UTC DateTime zorunluluğu — legacy davranışı kapat
@@ -42,7 +43,29 @@ builder.Services.ConfigureHttpJsonOptions(options =>
 });
 
 // Authentication & Authorization
-builder.Services.AddAuthentication();
+builder.Services.AddAuthentication(options =>
+{
+	options.DefaultAuthenticateScheme = "Bearer";
+	options.DefaultChallengeScheme = "Bearer";
+})
+.AddJwtBearer("Bearer", options =>
+{
+	var jwtSecret = builder.Configuration["CleanTenant:Jwt:Secret"]
+		?? "DEVELOPMENT-ONLY-SECRET-KEY-NEVER-USE-IN-PRODUCTION-MIN-64-CHARACTERS-REQUIRED!!";
+
+	options.TokenValidationParameters = new Microsoft.IdentityModel.Tokens.TokenValidationParameters
+	{
+		ValidateIssuerSigningKey = true,
+		IssuerSigningKey = new Microsoft.IdentityModel.Tokens.SymmetricSecurityKey(
+			System.Text.Encoding.UTF8.GetBytes(jwtSecret)),
+		ValidateIssuer = true,
+		ValidIssuer = builder.Configuration["CleanTenant:Jwt:Issuer"] ?? "CleanTenant",
+		ValidateAudience = true,
+		ValidAudience = builder.Configuration["CleanTenant:Jwt:Audience"] ?? "CleanTenant",
+		ValidateLifetime = true,
+		ClockSkew = TimeSpan.Zero
+	};
+});
 builder.Services.AddAuthorization();
 
 // OpenAPI (Scalar)
@@ -56,11 +79,16 @@ app.UseCleanTenantMiddleware();
 if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
-    app.MapScalarApiReference();
+	app.MapScalarApiReference(options =>
+	{
+		options.Theme = ScalarTheme.DeepSpace;
+	});
+	// Hangfire Dashboard — arka plan görevlerini izle
+	app.MapHangfireDashboard("/hangfire");
 }
 
 // ── Endpoint'ler ───────────────────────────────────────────────────────
-app.MapGet("/", () => "CleanTenant API is running.");
+app.MapGet("/", () => Results.Redirect("/health"));
 app.MapGet("/health", () => Results.Ok(new
 {
     Status = "Healthy",

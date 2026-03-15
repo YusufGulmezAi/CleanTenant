@@ -39,7 +39,11 @@
 
   <ItemGroup>
     <!-- OpenAPI: AddOpenApi() ve MapOpenApi() için gerekli (.NET 10) -->
-    <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.*" />
+    <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.5" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Tools" Version="10.0.5">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
 
     <!-- Scalar: OpenAPI dokümantasyon UI (.NET 10 native desteği ile) -->
     <PackageReference Include="Scalar.AspNetCore" Version="2.*" />

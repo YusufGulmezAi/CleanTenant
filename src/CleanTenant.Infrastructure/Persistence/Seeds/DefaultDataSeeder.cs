@@ -31,14 +31,14 @@ public static class DefaultDataSeeder
 
         try
         {
-            // Migration'ları uygula (yoksa oluştur)
-            await context.Database.MigrateAsync();
-            logger.LogInformation("Ana veritabanı migration'ları uygulandı.");
+			// Migration'ları uygula (yoksa oluştur)
+			await context.Database.EnsureCreatedAsync();
+			logger.LogInformation("Ana veritabanı migration'ları uygulandı.");
 
             // Audit DB migration
             var auditContext = scope.ServiceProvider.GetRequiredService<AuditDbContext>();
-            await auditContext.Database.MigrateAsync();
-            logger.LogInformation("Audit veritabanı migration'ları uygulandı.");
+			await context.Database.EnsureCreatedAsync();
+			logger.LogInformation("Audit veritabanı migration'ları uygulandı.");
 
             // Seed: Sistem rolleri
             await SeedSystemRolesAsync(context, logger);

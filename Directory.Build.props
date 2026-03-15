@@ -80,15 +80,15 @@
     <MediatRVersion>12.*</MediatRVersion>
     
     <!-- FluentValidation — İş kuralı doğrulama -->
-    <FluentValidationVersion>11.*</FluentValidationVersion>
+    <FluentValidationVersion>12.*</FluentValidationVersion>
     
     <!-- Serilog — Yapısal loglama -->
     <!-- Serilog.AspNetCore framework versiyonunu takip eder: .NET 10 → 10.* -->
-    <SerilogAspNetCoreVersion>10.*</SerilogAspNetCoreVersion>
+    <SerilogAspNetCoreVersion>10.0.0</SerilogAspNetCoreVersion>
     <!-- Serilog.Sinks.PostgreSQL kendi versiyonlamasını kullanır (max 2.x) -->
-    <SerilogSinksPostgreSqlVersion>2.*</SerilogSinksPostgreSqlVersion>
+    <SerilogSinksPostgreSqlVersion>2.3.0</SerilogSinksPostgreSqlVersion>
     <!-- Serilog.Sinks.Seq kendi versiyonlamasını kullanır -->
-    <SerilogSinksSeqVersion>8.*</SerilogSinksSeqVersion>
+    <SerilogSinksSeqVersion>9.*</SerilogSinksSeqVersion>
     
     <!-- Redis — Dağıtık cache -->
     <StackExchangeRedisVersion>2.*</StackExchangeRedisVersion>

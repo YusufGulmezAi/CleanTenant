@@ -46,7 +46,7 @@
     <PackageReference Include="Microsoft.EntityFrameworkCore" Version="$(EfCoreVersion)" />
     
     <!-- Npgsql: PostgreSQL provider — EF Core'un PostgreSQL ile konuşmasını sağlar -->
-    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="$(EfCoreVersion)" />
+    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="10.0.1" />
     
     <!-- EF Core Tools: Migration oluşturma ve uygulama (dotnet ef) -->
     <PackageReference Include="Microsoft.EntityFrameworkCore.Tools" Version="$(EfCoreVersion)">

@@ -47,7 +47,7 @@
 
 		<!-- Npgsql: PostgreSQL provider — EF Core'un PostgreSQL ile konuşmasını sağlar -->
 		<PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="$(EfCoreVersion)" />
-		
+
 		<!-- EF Core Tools: Migration oluşturma ve uygulama (dotnet ef) -->
 		<PackageReference Include="Microsoft.EntityFrameworkCore.Tools" Version="$(EfCoreVersion)">
 			<PrivateAssets>all</PrivateAssets>
@@ -72,6 +72,12 @@
          ================================================================ -->
 		<!-- MailKit: Modern, RFC uyumlu SMTP istemcisi (SmtpClient yerine) -->
 		<PackageReference Include="MailKit" Version="4.*" />
+
+		<!-- QRCoder: QR kod üretimi (byte[] PNG) -->
+		<PackageReference Include="QRCoder" Version="1.*" />
+
+		<!-- Otp.NET: TOTP/HOTP doğrulama (RFC 6238) -->
+		<PackageReference Include="Otp.NET" Version="1.*" />
 
 		<!-- ================================================================
          CACHE — Redis (Dağıtık)

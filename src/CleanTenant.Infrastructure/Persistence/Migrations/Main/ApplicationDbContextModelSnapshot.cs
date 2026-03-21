@@ -65,6 +65,10 @@ namespace CleanTenant.Infrastructure.Persistence.Migrations.Main
                     b.Property<bool>("EmailConfirmed")
                         .HasColumnType("boolean");
 
+                    b.Property<string>("EnabledTwoFactorMethods")
+                        .IsRequired()
+                        .HasColumnType("text");
+
                     b.Property<string>("FullName")
                         .IsRequired()
                         .HasMaxLength(200)

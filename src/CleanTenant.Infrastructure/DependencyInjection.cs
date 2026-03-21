@@ -1,3 +1,4 @@
+
 using CleanTenant.Application.Common.Interfaces;
 using CleanTenant.Infrastructure.Caching;
 using CleanTenant.Infrastructure.Persistence;
@@ -104,6 +105,9 @@ public static class DependencyInjection
         // Mevcut kullanıcı bilgisi (HttpContext'ten)
         services.AddHttpContextAccessor();
         services.AddScoped<ICurrentUserService, CurrentUserService>();
+
+        // TOTP — QR kod üretimi, TOTP doğrulama (QRCoder + Otp.NET)
+        services.AddSingleton<ITotpService, Security.TotpService>();
 
         // ================================================================
         // E-POSTA SERVİSİ

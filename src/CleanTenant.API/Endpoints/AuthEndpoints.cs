@@ -96,13 +96,25 @@ public static class AuthEndpoints
             .RequireAuthorization();
 
         group.MapPost("/2fa/disable", Disable2FA)
-            .WithSummary("2FA devre dışı bırak (şifre ile onay)")
+            .WithSummary("Tüm 2FA yöntemlerini devre dışı bırak")
             .RequireAuthorization();
 
-		group.MapGet("/emails", GetEmailLogs)
-			.WithSummary("E-posta gönderim loglarını getir")
-			.RequireAuthorization();
-	}
+        group.MapPost("/2fa/enable-sms", EnableSms)
+            .WithSummary("SMS ile 2FA aktifleştir (telefon doğrulama kodu gönderir)")
+            .RequireAuthorization();
+
+        group.MapPost("/2fa/verify-sms", VerifySms)
+            .WithSummary("SMS kodunu doğrula ve SMS 2FA aktifleştir")
+            .RequireAuthorization();
+
+        group.MapPost("/2fa/set-primary", SetPrimary2FA)
+            .WithSummary("Primary 2FA yöntemini değiştir")
+            .RequireAuthorization();
+
+        group.MapPost("/2fa/disable-method", DisableSpecific2FA)
+            .WithSummary("Belirli bir 2FA yöntemini kapat (diğerleri kalsın)")
+            .RequireAuthorization();
+    }
 
     /// <summary>POST /api/auth/login</summary>
     private static async Task<IResult> Login(
@@ -286,32 +298,44 @@ public static class AuthEndpoints
 
         return Results.Ok(new { isSuccess = true, message = "E-posta başarıyla doğrulandı." });
     }
-	private static async Task<IResult> GetEmailLogs(
-		IAuditDbContext auditDb, int page = 1, int size = 20, CancellationToken ct = default)
-	{
-		var logs = await auditDb.EmailLogs
-			.OrderByDescending(e => e.CreatedAt)
-			.Skip((page - 1) * size)
-			.Take(size)
-			.Select(e => new
-			{
-				e.Id,
-				e.To,
-				e.Cc,
-				e.Bcc,
-				e.Subject,
-				Status = e.Status.ToString(),
-				e.Category,
-				e.SentAt,
-				e.ErrorMessage,
-				e.AttemptCount,
-				e.AttachmentNames,
-				e.CreatedAt
-			})
-			.ToListAsync(ct);
 
-		var total = await auditDb.EmailLogs.CountAsync(ct);
+    // ── SMS + Çoklu 2FA Yönetim Endpoint'leri ──────────────────────────
 
-		return Results.Ok(new { isSuccess = true, total, page, size, data = logs });
-	}
+    private static async Task<IResult> EnableSms(
+        Enable2FASmsDto dto, ISender sender, CancellationToken ct)
+    {
+        var result = await sender.Send(new Enable2FASmsCommand(dto), ct);
+        return result.ToApiResponse();
+    }
+
+    private static async Task<IResult> VerifySms(
+        VerifySmsDto dto, ISender sender, CancellationToken ct)
+    {
+        var result = await sender.Send(new VerifySmsCommand(dto), ct);
+        return result.ToApiResponse();
+    }
+
+    private static async Task<IResult> SetPrimary2FA(
+        SetPrimary2FADto dto, ISender sender, CancellationToken ct)
+    {
+        var result = await sender.Send(new SetPrimary2FACommand(dto), ct);
+        return result.ToApiResponse();
+    }
+
+    private static async Task<IResult> DisableSpecific2FA(
+        DisableSpecific2FARequest body, ISender sender, CancellationToken ct)
+    {
+        var result = await sender.Send(new DisableSpecific2FACommand
+        {
+            Method = body.Method,
+            CurrentPassword = body.CurrentPassword
+        }, ct);
+        return result.ToApiResponse();
+    }
+}
+
+public class DisableSpecific2FARequest
+{
+    public string Method { get; set; } = default!;
+    public string CurrentPassword { get; set; } = default!;
 }

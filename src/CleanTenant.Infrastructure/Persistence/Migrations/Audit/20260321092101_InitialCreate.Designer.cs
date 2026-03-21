@@ -13,7 +13,7 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace CleanTenant.Infrastructure.Persistence.Migrations.Audit
 {
     [DbContext(typeof(AuditDbContext))]
-    [Migration("20260315132857_InitialCreate")]
+    [Migration("20260321092101_InitialCreate")]
     partial class InitialCreate
     {
         /// <inheritdoc />

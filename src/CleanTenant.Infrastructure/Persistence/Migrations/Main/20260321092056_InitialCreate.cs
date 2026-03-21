@@ -201,6 +201,7 @@ namespace CleanTenant.Infrastructure.Persistence.Migrations.Main
                     LastPasswordChangedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
                     TwoFactorEnabled = table.Column<bool>(type: "boolean", nullable: false),
                     PrimaryTwoFactorMethod = table.Column<int>(type: "integer", nullable: false),
+                    EnabledTwoFactorMethods = table.Column<string>(type: "text", nullable: false),
                     AuthenticatorKey = table.Column<string>(type: "character varying(500)", maxLength: 500, nullable: true),
                     IsActive = table.Column<bool>(type: "boolean", nullable: false),
                     AccessFailedCount = table.Column<int>(type: "integer", nullable: false),

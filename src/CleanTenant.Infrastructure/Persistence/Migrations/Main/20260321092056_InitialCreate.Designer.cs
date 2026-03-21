@@ -12,7 +12,7 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace CleanTenant.Infrastructure.Persistence.Migrations.Main
 {
     [DbContext(typeof(ApplicationDbContext))]
-    [Migration("20260315132853_InitialCreate")]
+    [Migration("20260321092056_InitialCreate")]
     partial class InitialCreate
     {
         /// <inheritdoc />
@@ -67,6 +67,10 @@ namespace CleanTenant.Infrastructure.Persistence.Migrations.Main
 
                     b.Property<bool>("EmailConfirmed")
                         .HasColumnType("boolean");
+
+                    b.Property<string>("EnabledTwoFactorMethods")
+                        .IsRequired()
+                        .HasColumnType("text");
 
                     b.Property<string>("FullName")
                         .IsRequired()

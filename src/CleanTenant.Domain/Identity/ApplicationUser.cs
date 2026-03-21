@@ -92,24 +92,19 @@ public class ApplicationUser : BaseAuditableEntity, ISoftDeletable
     // İKİ FAKTÖRLÜ DOĞRULAMA (2FA)
     // ========================================================================
 
-    /// <summary>
-    /// 2FA aktif mi?
-    /// Kullanıcı isterse açar/kapatır. Parametrik olarak zorunlu da kılınabilir.
-    /// </summary>
+    /// <summary>2FA aktif mi?</summary>
     public bool TwoFactorEnabled { get; private set; }
 
-    /// <summary>
-    /// Birincil 2FA metodu.
-    /// Kullanıcı login olduğunda bu metod ile doğrulama istenir.
-    /// Erişilemezse e-posta fallback devreye girer.
-    /// </summary>
+    /// <summary>Birincil 2FA metodu — login'de varsayılan olarak bu kullanılır.</summary>
     public TwoFactorMethod PrimaryTwoFactorMethod { get; private set; } = TwoFactorMethod.None;
 
     /// <summary>
-    /// TOTP (Authenticator) gizli anahtarı — şifreli saklanır.
-    /// QR kod üretimi ve kod doğrulama için kullanılır.
-    /// Sadece Authenticator seçildiğinde doldurulur.
+    /// Aktif 2FA yöntemleri (JSON array). Birden fazla yöntem aynı anda aktif olabilir.
+    /// Örnek: ["Email","Authenticator"] veya ["Email","Sms","Authenticator"]
     /// </summary>
+    public string EnabledTwoFactorMethods { get; private set; } = "[]";
+
+    /// <summary>TOTP (Authenticator) gizli anahtarı.</summary>
     public string? AuthenticatorKey { get; private set; }
 
     // ========================================================================
@@ -256,10 +251,17 @@ public class ApplicationUser : BaseAuditableEntity, ISoftDeletable
         PhoneNumberConfirmed = true;
     }
 
+    /// <summary>Telefon numarasını günceller (yeni numara doğrulanmamış olur).</summary>
+    public void UpdatePhoneNumber(string phoneNumber)
+    {
+        PhoneNumber = phoneNumber?.Trim();
+        PhoneNumberConfirmed = false;
+    }
+
     /// <summary>
-    /// 2FA'yı aktif eder.
-    /// E-posta doğrulanmış olmalıdır (fallback için zorunlu).
-    /// SMS seçilmişse telefon doğrulanmış olmalıdır.
+    /// Belirli bir 2FA yöntemini aktif eder.
+    /// Birden fazla yöntem aynı anda aktif olabilir.
+    /// İlk aktif edilen yöntem otomatik Primary olur.
     /// </summary>
     public void EnableTwoFactor(TwoFactorMethod method, string? authenticatorKey = null)
     {
@@ -272,21 +274,89 @@ public class ApplicationUser : BaseAuditableEntity, ISoftDeletable
         if (method == TwoFactorMethod.Authenticator && string.IsNullOrEmpty(authenticatorKey))
             throw new ArgumentException("Authenticator için gizli anahtar zorunludur.");
 
+        if (method == TwoFactorMethod.Authenticator)
+            AuthenticatorKey = authenticatorKey;
+
+        // Mevcut listeye ekle (duplicate önle)
+        var methods = GetEnabledMethodsList();
+        var methodName = method.ToString();
+        if (!methods.Contains(methodName))
+            methods.Add(methodName);
+
+        EnabledTwoFactorMethods = System.Text.Json.JsonSerializer.Serialize(methods);
         TwoFactorEnabled = true;
-        PrimaryTwoFactorMethod = method;
-        AuthenticatorKey = authenticatorKey;
+
+        // İlk yöntem veya daha güvenli yöntem Primary olur
+        // Öncelik: Authenticator > Sms > Email
+        PrimaryTwoFactorMethod = GetHighestPriorityMethod(methods);
 
         AddDomainEvent(new UserTwoFactorChangedEvent(Id, true, method));
     }
 
-    /// <summary>2FA'yı devre dışı bırakır.</summary>
+    /// <summary>Belirli bir 2FA yöntemini devre dışı bırakır.</summary>
+    public void DisableTwoFactorMethod(TwoFactorMethod method)
+    {
+        var methods = GetEnabledMethodsList();
+        methods.Remove(method.ToString());
+        EnabledTwoFactorMethods = System.Text.Json.JsonSerializer.Serialize(methods);
+
+        if (method == TwoFactorMethod.Authenticator)
+            AuthenticatorKey = null;
+
+        if (methods.Count == 0)
+        {
+            TwoFactorEnabled = false;
+            PrimaryTwoFactorMethod = TwoFactorMethod.None;
+        }
+        else
+        {
+            PrimaryTwoFactorMethod = GetHighestPriorityMethod(methods);
+        }
+
+        AddDomainEvent(new UserTwoFactorChangedEvent(Id, TwoFactorEnabled, PrimaryTwoFactorMethod));
+    }
+
+    /// <summary>Tüm 2FA yöntemlerini devre dışı bırakır.</summary>
     public void DisableTwoFactor()
     {
         TwoFactorEnabled = false;
         PrimaryTwoFactorMethod = TwoFactorMethod.None;
+        EnabledTwoFactorMethods = "[]";
         AuthenticatorKey = null;
 
         AddDomainEvent(new UserTwoFactorChangedEvent(Id, false, TwoFactorMethod.None));
+    }
+
+    /// <summary>Primary 2FA yöntemini değiştirir (aktif yöntemler arasından).</summary>
+    public void SetPrimaryTwoFactorMethod(TwoFactorMethod method)
+    {
+        var methods = GetEnabledMethodsList();
+        if (!methods.Contains(method.ToString()))
+            throw new InvalidOperationException($"{method} yöntemi aktif değil. Önce aktif ediniz.");
+
+        PrimaryTwoFactorMethod = method;
+    }
+
+    /// <summary>Aktif 2FA yöntemlerinin listesini döner.</summary>
+    public List<string> GetEnabledMethodsList()
+    {
+        try
+        {
+            return System.Text.Json.JsonSerializer.Deserialize<List<string>>(EnabledTwoFactorMethods ?? "[]") ?? [];
+        }
+        catch { return []; }
+    }
+
+    /// <summary>Belirli bir 2FA yöntemi aktif mi?</summary>
+    public bool IsTwoFactorMethodEnabled(TwoFactorMethod method)
+        => GetEnabledMethodsList().Contains(method.ToString());
+
+    private static TwoFactorMethod GetHighestPriorityMethod(List<string> methods)
+    {
+        if (methods.Contains("Authenticator")) return TwoFactorMethod.Authenticator;
+        if (methods.Contains("Sms")) return TwoFactorMethod.Sms;
+        if (methods.Contains("Email")) return TwoFactorMethod.Email;
+        return TwoFactorMethod.None;
     }
 
     /// <summary>Başarılı login bilgilerini kaydeder.</summary>
@@ -331,3 +401,12 @@ public class ApplicationUser : BaseAuditableEntity, ISoftDeletable
         TimeZone = timeZone;
     }
 }
+
+// ============================================================================
+// DOMAIN EVENTS
+// ============================================================================
+
+public record UserCreatedEvent(Guid UserId, string Email) : IDomainEvent;
+public record UserStatusChangedEvent(Guid UserId, bool IsActive) : IDomainEvent;
+public record UserTwoFactorChangedEvent(Guid UserId, bool IsEnabled, TwoFactorMethod Method) : IDomainEvent;
+public record UserLockedOutEvent(Guid UserId, DateTime LockoutEnd) : IDomainEvent;

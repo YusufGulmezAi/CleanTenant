@@ -1,96 +1,144 @@
 # 📋 CleanTenant — Proje Tanıtım Dokümanı
 
-## Proje Vizyonu
+**Hedef Kitle:** Proje Yöneticileri, İş Analistleri, Karar Vericiler
+**Son Güncelleme:** Mart 2026
 
-CleanTenant, mali müşavirlik firmaları ve çok kiracılı (multi-tenant) işletmeler için geliştirilmiş, kurumsal düzeyde bir yazılım çatısıdır. Tek platform üzerinden sınırsız firma, şirket ve kullanıcıyı güvenli şekilde yönetmeyi hedefler.
+---
 
-## Problem Tanımı
+## 1. Yönetici Özeti
 
-Mali müşavirlik firmaları onlarca hatta yüzlerce şirkete hizmet verir. Her şirketin verileri birbirinden kesinlikle izole olmalı, farklı kullanıcılar farklı şirketlere farklı yetkilerle erişebilmeli, tüm işlemler denetlenebilir olmalıdır.
+CleanTenant, mali müşavirlik firmaları ve çok kiracılı (multi-tenant) SaaS platformları için geliştirilmiş bir kurumsal yazılım çatısıdır. Tek platform üzerinden sınırsız firma, şirket ve kullanıcıyı güvenli şekilde yönetir.
 
-Mevcut çözümlerin eksikleri:
-- Tek seviyeli tenant yapısı (firma → şirket hiyerarşisi yok)
-- Yetki yönetimi yetersiz (IP/zaman bazlı erişim kontrolü yok)
-- Denetim izi eksik (KVKK uyumsuzluğu)
-- 2FA desteği sınırlı veya yok
-- Teknoloji borcu yüksek
+Projenin temel farkı **3 katmanlı hiyerarşi** yapısıdır: Platform (System) → Firma (Tenant) → Şirket (Company) → Kişi (Member). Bu yapı sayesinde bir mali müşavirlik firması, tüm müşteri şirketlerini tek platformda yönetirken, her şirketin verisi birbirinden tamamen izole kalır.
 
-## Çözüm: CleanTenant
+---
 
-### 3 Katmanlı Hiyerarşi
+## 2. Problem Tanımı
 
-```
-Platform (CleanTenant)
-  └── Tenant (Mali Müşavirlik Firması)
-       ├── Company A (Müşteri Şirket)
-       │    ├── CompanyAdmin (Muhasebeci)
-       │    ├── CompanyUser (Çalışan)
-       │    └── Member (Şirket ortağı)
-       └── Company B (Başka Müşteri)
-```
+### 2.1 Mevcut Durum
 
-### Temel Özellikler
+Mali müşavirlik firmaları tipik olarak 30-200 şirkete hizmet verir. Her şirket için:
 
-| Özellik | Açıklama |
+- Farklı kullanıcılar farklı rollere sahiptir (muhasebeci, şirket müdürü, ortak)
+- Veriler kesinlikle birbirinden izole olmalıdır (yasal zorunluluk)
+- Erişim saatlerine ve IP adreslerine göre kısıtlama gerekebilir (güvenlik politikası)
+- Tüm işlemler denetlenebilir olmalıdır (KVKK/GDPR uyumu)
+- İki faktörlü doğrulama zorunlu veya önerilen olmalıdır
+
+### 2.2 Mevcut Çözümlerin Eksikleri
+
+| Problem | Açıklama |
 |---------|----------|
-| Hiyerarşik Multi-Tenancy | System → Tenant → Company → Member (7 seviye) |
-| Clean Architecture | Domain → Application → Infrastructure → API → BlazorUI |
-| 57 API Endpoint | Auth, Tenant, Company, User, Role, Session, Policy, Settings, IP Blacklist |
-| Blazor Server UI | MudBlazor 9.1, kurumsal yeşil tema, dark/light, AdminLTE dashboard |
-| İki Faktörlü Doğrulama | TOTP (Authenticator) + gerçek e-posta kodu (MailKit SMTP) |
-| Erişim Politikası | IP whitelist (CIDR) + Gün/Saat kısıtlama, 3 seviye, açık kapı yok |
-| E-posta Servisi | MailKit SMTP, CC/BCC, çoklu ek, Hangfire background, PostgreSQL tracking |
-| Parametrik Ayarlar | 21 ayar, DB'den yönetilebilir, Company→Tenant→System→config fallback |
-| Denetim İzi | AuditLog, SecurityLog, EmailLog (KVKK uyumlu, cross-level loglama) |
-| Token Yönetimi | JWT + Refresh Token rotation + Device fingerprint + Redis dual storage |
-| Redis Cache | Oturum, izin, ayar cache, IP blacklist, 2FA kodları |
-| Docker Ready | 5 servis (PostgreSQL×2, Redis, pgAdmin, Seq) |
+| Tek seviyeli tenant | Firma → Şirket hiyerarşisi desteklenmiyor |
+| Yetersiz yetki yönetimi | IP/zaman bazlı erişim kontrolü yok |
+| Eksik denetim izi | KVKK uyumsuzluğu riski |
+| Sınırlı 2FA | E-posta/SMS/Authenticator aynı anda desteklenmiyor |
+| Teknoloji borcu | Eski framework, güncellenmesi maliyetli |
 
-### Güvenlik Yaklaşımı
+---
 
-1. **Açık kapı yok** — Politika atanmamış kullanıcı giriş yapamaz
-2. **Default politika** — Her seviyede silinemez "tümünü reddet" politikası
+## 3. Çözüm: CleanTenant
+
+### 3.1 Temel Özellikler
+
+| Kategori | Özellik | Detay |
+|----------|---------|-------|
+| **Hiyerarşi** | 3 katmanlı multi-tenancy | System → Tenant → Company → Member |
+| **Kullanıcı** | 7 seviyeli yetki sistemi | SuperAdmin'den CompanyMember'a kadar |
+| **2FA** | Çoklu yöntem desteği | E-posta + SMS + Authenticator (aynı anda aktif) |
+| **QR Kod** | API'de üretim | QRCoder ile PNG byte[], harici API bağımlılığı yok |
+| **Erişim** | IP + Zaman politikası | CIDR desteği, gün/saat kısıtlama, 3 seviyeli default |
+| **E-posta** | MailKit SMTP | Gmail/Outlook, CC/BCC, ek, Hangfire arka plan |
+| **Ayarlar** | Parametrik yönetim | 21 ayar, UI'dan değiştirilebilir, hiyerarşik override |
+| **Denetim** | KVKK uyumlu | AuditLog, SecurityLog, EmailLog, cross-level loglama |
+| **UI** | Blazor Server | MudBlazor 9.1, kurumsal yeşil tema, dark/light toggle |
+| **API** | 57 endpoint | Minimal API, Scalar dokümantasyon |
+| **Test** | 119 unit test | Domain, Application, Behavior katmanları |
+| **Altyapı** | Docker Ready | 5 servis, tek komutla ayağa kalkar |
+
+### 3.2 Güvenlik Yaklaşımı (8 Prensip)
+
+1. **Açık kapı asla olmaz** — Politika atanmamış kullanıcı giriş yapamaz
+2. **Default politika silinemez** — Her seviyede "tümünü reddet" politikası bulunur
 3. **Hiyerarşik yetki** — Alt seviye üst seviyeye müdahale edemez
-4. **Cross-level loglama** — Üst seviyenin alt seviyeye müdahalesi detaylı loglanır
+4. **Cross-level loglama** — Üst seviye müdahalesi detaylı loglanır
 5. **Token rotation** — Her refresh'te eski token silinir, yenisi üretilir
-6. **2FA zorunlu** — SuperAdmin varsayılan olarak 2FA ile girer
-7. **Gerçek 2FA** — Hardcoded kod yok, MailKit ile gerçek e-posta gönderimi
-8. **PBKDF2** — 100K iterasyon, 128-bit salt ile şifre hash'leme
+6. **Çoklu 2FA** — E-posta, SMS ve Authenticator aynı anda aktif olabilir
+7. **Gerçek 2FA** — Hardcoded kod yok, MailKit/TOTP ile gerçek doğrulama
+8. **PBKDF2** — 100.000 iterasyon, 128-bit salt ile endüstri standardı hash
 
-### Hedef Kitle
+### 3.3 Hedef Kitle
 
-- Mali müşavirlik firmaları
-- Çok müşterili SaaS platformları
-- Kurum içi multi-tenant uygulamalar
-- KVKK uyumlu denetim gerektiren projeler
+| Segment | Kullanım Senaryosu |
+|---------|-------------------|
+| Mali Müşavirlik Firmaları | Müşteri şirketlerini tek platformda yönetme |
+| Çok Müşterili SaaS Platformları | Tenant izolasyonu, yetki hiyerarşisi |
+| Kurum İçi Uygulamalar | Departman/şube bazlı erişim kontrolü |
+| KVKK Uyumlu Projeler | Denetim izi, veri izolasyonu, erişim loglaması |
 
-### Lisans ve Dağıtım
+---
 
-- **Lisans:** MIT (açık kaynak)
-- **GitHub:** https://github.com/YusufGulmezAi/CleanTenant
+## 4. Teknik Gereksinimler
 
-### Teknoloji Gereksinimleri
+| Gereksinim | Minimum | Önerilen |
+|-----------|---------|----------|
+| .NET SDK | 10.0 | 10.0 (Stable) |
+| PostgreSQL | 16 | 17 |
+| Redis | 6 | 7 |
+| Docker | 24 | En güncel |
+| RAM | 4 GB | 8 GB |
+| Disk | 5 GB | 20 GB |
+| İşletim Sistemi | Windows 10+ / Ubuntu 22+ / macOS 13+ | — |
 
-| Gereksinim | Minimum |
-|-----------|---------|
-| .NET | 10.0 (Stable) |
-| PostgreSQL | 17 |
-| Redis | 7 |
-| Docker | 24+ |
-| Node.js | Gerekmiyor |
+---
 
-### Geliştirme Yol Haritası
+## 5. Geliştirme Yol Haritası
 
-| Faz | Durum | Açıklama |
-|-----|-------|----------|
-| 1. Domain + Infrastructure | ✅ | 18 entity, EF Core, Redis, Docker |
-| 2. Güvenlik Modülü | ✅ | JWT, TOTP 2FA, Session, AccessPolicy |
-| 3. CQRS + API | ✅ | 57 endpoint, 50 handler |
-| 4. E-posta + Hangfire | ✅ | MailKit SMTP, gerçek 2FA kodu, background job |
-| 5. Settings Modülü | ✅ | 21 ayar, hiyerarşik, UI'dan yönetim |
-| 6. Access Policy v2 | ✅ | 3 katman, default politika, KVKK loglama |
-| 7. Dosya Ayrıştırma | ✅ | 1 dosya = 1 sınıf convention |
-| 8. Unit Tests | ✅ | 119/119 başarılı |
-| 9. Blazor UI | ✅ | MudBlazor 9.1, Login+2FA, Dashboard, Tenant CRUD |
-| 10. CRUD Sayfaları | 🔄 | Company, User, Role, Session, Settings sayfaları |
-| 11. NuGet + CI/CD | 📋 | GitHub Actions, NuGet paket yayını |
+### 5.1 Tamamlanan Fazlar
+
+| Faz | Süre | Durum | Açıklama |
+|-----|------|-------|----------|
+| 1. Domain Katmanı | — | ✅ Tamamlandı | 18 entity, 8 enum, base class'lar, domain event'ler |
+| 2. Infrastructure Katmanı | — | ✅ Tamamlandı | EF Core, Redis, JWT, Docker (5 servis) |
+| 3. Güvenlik Modülü | — | ✅ Tamamlandı | PBKDF2, JWT token, session, device fingerprint |
+| 4. CQRS + API | — | ✅ Tamamlandı | 57 endpoint, 54 handler, 4 behavior, 5 middleware |
+| 5. E-posta + Hangfire | — | ✅ Tamamlandı | MailKit SMTP, Hangfire arka plan, PostgreSQL tracking |
+| 6. Ayar Modülü (Settings) | — | ✅ Tamamlandı | 21 ayar, hiyerarşik okuma, Redis cache, UI yönetimi |
+| 7. Erişim Politikası v2 | — | ✅ Tamamlandı | 3 katman, default politika, KVKK loglama |
+| 8. Unit Test | — | ✅ Tamamlandı | 119/119 başarılı (Domain, Application, Behavior) |
+| 9. Blazor UI Temel Yapı | — | ✅ Tamamlandı | MudBlazor 9.1, Login+2FA, Dashboard, Tenant CRUD |
+| 10. Çoklu 2FA + QRCoder | — | ✅ Tamamlandı | E-posta + SMS + Authenticator, QR PNG, Recovery kodları |
+| 11. Dosya Ayrıştırma | — | ✅ Tamamlandı | 1 dosya = 1 sınıf convention (kısmen) |
+
+### 5.2 Planlanan Fazlar
+
+| Faz | Öncelik | Açıklama |
+|-----|---------|----------|
+| 12. CRUD Sayfaları | Yüksek | Company, User, Role, Session, Settings, AccessPolicy, IpBlacklist |
+| 13. IP Blacklist Endpoint | Yüksek | API endpoint'leri (list, add, remove, check) |
+| 14. Real SMS Entegrasyonu | Orta | ISmsProvider implementasyonu (Twilio/Netgsm) |
+| 15. Şifre Sıfırlama | Orta | E-posta ile link, token-based reset akışı |
+| 16. Audit Log Sayfası | Orta | Blazor UI'da SecurityLog/AuditLog görüntüleme |
+| 17. NuGet Paket Yayını | Düşük | CleanTenant.Domain, Shared NuGet paketi |
+| 18. CI/CD Pipeline | Düşük | GitHub Actions: build, test, Docker push |
+| 19. Backup Modülü | Düşük | Şirket bazlı yedekleme/geri yükleme |
+
+---
+
+## 6. Risk Analizi
+
+| Risk | Olasılık | Etki | Azaltma Stratejisi |
+|------|----------|------|---------------------|
+| SMS sağlayıcı entegrasyonu gecikmesi | Orta | Düşük | ISmsProvider interface mevcut, geçici olarak dev kodu ile çalışır |
+| EF Core versiyon çakışması | Düşük | Orta | Directory.Build.props'ta versiyon sabitleme zaten yapıldı |
+| MudBlazor breaking change | Düşük | Orta | 9.1'e migration tamamlandı, sabitlendi |
+| Redis bağlantı kopması | Düşük | Yüksek | Fallback: DB'den oturum doğrulama, graceful degradation |
+| SMTP sağlayıcı blokajı | Orta | Orta | Çoklu sağlayıcı desteği (Gmail + Outlook), Hangfire retry |
+
+---
+
+## 7. Lisans ve İletişim
+
+- **Lisans:** MIT (açık kaynak, ticari kullanım serbest)
+- **Kaynak Kodu:** https://github.com/YusufGulmezAi/CleanTenant
+- **Geliştirici:** Yusuf Gülmez

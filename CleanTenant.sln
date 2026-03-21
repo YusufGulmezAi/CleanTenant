@@ -28,6 +28,11 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tests", "tests", "{F0000000
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "docker", "docker", "{F0000000-0000-0000-0000-000000000003}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "docs", "docs", "{02EA681E-C7D8-13C7-8484-4AC65E1B71E8}"
+	ProjectSection(SolutionItems) = preProject
+		resetAllDockerConfigs.md = resetAllDockerConfigs.md
+	EndProjectSection
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -89,5 +94,8 @@ Global
 		{A1B2C3D4-1002-0000-0000-000000000002} = {F0000000-0000-0000-0000-000000000002}
 		{A1B2C3D4-1003-0000-0000-000000000003} = {F0000000-0000-0000-0000-000000000002}
 		{A1B2C3D4-1004-0000-0000-000000000004} = {F0000000-0000-0000-0000-000000000002}
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {D33E8D41-7855-4B05-8219-5E18D6BEA51C}
 	EndGlobalSection
 EndGlobal
